@@ -103,11 +103,11 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-full mx-auto px-4 py-6">
         {mode === 'budget' ? (
           <BudgetFinder currentKrwPerUsd={krwPerUsd} onSelectCountry={handleSelectCountry} />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr_320px] gap-6">
             {/* Left: country selector + filters */}
             <div className="space-y-5">
               <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/60 space-y-4">
@@ -270,12 +270,7 @@ export default function Home() {
             </div>
 
             {/* Right: results */}
-            <div className="space-y-5 relative">
-              {/* Sticky ad on top right */}
-              <div className="sticky top-4 z-10">
-                <AdBanner slot="3333333333" format="vertical" />
-              </div>
-
+            <div className="space-y-5">
               {!selectedCountry ? (
                 <WelcomeBanner onModeSwitch={() => setMode('budget')} />
               ) : (
@@ -322,6 +317,13 @@ export default function Home() {
                   <AdBanner slot="3333333333" format="horizontal" />
                 </>
               )}
+            </div>
+
+            {/* Right sidebar: Sticky vertical ad */}
+            <div className="hidden lg:block">
+              <div className="sticky top-4">
+                <AdBanner slot="3333333333" format="vertical" />
+              </div>
             </div>
           </div>
         )}
