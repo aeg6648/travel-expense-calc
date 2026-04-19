@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 // TODO: Replace ca-pub-XXXXXXXXXX with your actual AdSense publisher ID
-const ADSENSE_CLIENT = 'ca-pub-XXXXXXXXXX';
+const ADSENSE_CLIENT = 'ca-pub-8900217994673939';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
