@@ -13,14 +13,16 @@ const ADSENSE_CLIENT = 'ca-pub-8900217994673939';
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className="h-full">
-      <body className="min-h-full bg-[#0f1117] text-white antialiased">
-        {children}
+      <head>
         <Script
           async
           src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
+      </head>
+      <body className="min-h-full bg-[#0f1117] text-white antialiased">
+        {children}
       </body>
     </html>
   );
