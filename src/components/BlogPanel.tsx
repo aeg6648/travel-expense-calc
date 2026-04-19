@@ -51,7 +51,7 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
       })
       .catch(() => setNoApi(true))
       .finally(() => setLoading(false));
-  }, [country.code]);
+  }, [country.nameKR]);
 
   const filteredBlogData = selectedCity
     ? country.blogData.filter(d => !d.city || d.city === selectedCity)

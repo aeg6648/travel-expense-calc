@@ -8,6 +8,45 @@ import {
 } from 'recharts';
 import { formatKRWShort, STYLE_COLORS, STYLE_LABELS } from '@/lib/utils';
 
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  baselineLabel,
+  baseEntry,
+}: {
+  active?: boolean;
+  payload?: { dataKey: string; value: number; color: string }[];
+  label?: string;
+  baselineLabel: string | null;
+  baseEntry: Record<string, unknown> | null;
+}) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-slate-900 border border-slate-600 rounded-xl p-3 text-xs space-y-1.5 shadow-xl">
+      <p className="font-semibold text-slate-300 mb-1">
+        {label}{baselineLabel && label !== baselineLabel ? ` (기준: ${baselineLabel})` : ''}
+      </p>
+      {payload.map(entry => {
+        const base = baseEntry ? (baseEntry[entry.dataKey] as number | undefined) : undefined;
+        const pct = base && base > 0 ? Math.round(((entry.value - base) / base) * 100) : null;
+        return (
+          <div key={entry.dataKey} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
+            <span className="text-slate-400">{STYLE_LABELS[entry.dataKey]}:</span>
+            <span className="text-slate-100 font-medium">{formatKRWShort(entry.value)}원</span>
+            {pct !== null && (
+              <span className={`font-medium ${pct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                {pct > 0 ? '+' : ''}{pct}%
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 interface Props {
   country: Country;
   duration: number;
@@ -97,37 +136,6 @@ export default function HistoricalChart({ country, duration, currentKrwPerUsd, a
       : Math.round(currentKrwPerLocal).toLocaleString();
   const currencyPair = country.currency === 'USD' ? 'USD/KRW' : `${country.currency}/KRW`;
 
-  const CustomTooltip = ({ active, payload, label }: {
-    active?: boolean;
-    payload?: { dataKey: string; value: number; color: string }[];
-    label?: string;
-  }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="bg-slate-900 border border-slate-600 rounded-xl p-3 text-xs space-y-1.5 shadow-xl">
-        <p className="font-semibold text-slate-300 mb-1">
-          {label}{baselineLabel && label !== baselineLabel ? ` (기준: ${baselineLabel})` : ''}
-        </p>
-        {payload.map(entry => {
-          const base = baseEntry ? (baseEntry[entry.dataKey] as number | undefined) : undefined;
-          const pct = base && base > 0 ? Math.round(((entry.value - base) / base) * 100) : null;
-          return (
-            <div key={entry.dataKey} className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
-              <span className="text-slate-400">{STYLE_LABELS[entry.dataKey]}:</span>
-              <span className="text-slate-100 font-medium">{formatKRWShort(entry.value)}원</span>
-              {pct !== null && (
-                <span className={`font-medium ${pct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {pct > 0 ? '+' : ''}{pct}%
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   return (
     <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/60 space-y-4">
       <div className="flex items-start justify-between gap-2">
@@ -170,7 +178,7 @@ export default function HistoricalChart({ country, duration, currentKrwPerUsd, a
             tickLine={false}
             width={48}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip baselineLabel={baselineLabel} baseEntry={baseEntry} />} />
           {baselineLabel && (
             <ReferenceLine
               x={baselineLabel}
