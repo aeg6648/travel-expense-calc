@@ -270,7 +270,12 @@ export default function Home() {
             </div>
 
             {/* Right: results */}
-            <div className="space-y-5">
+            <div className="space-y-5 relative">
+              {/* Sticky ad on top right */}
+              <div className="sticky top-4 z-10">
+                <AdBanner slot="3333333333" format="vertical" />
+              </div>
+
               {!selectedCountry ? (
                 <WelcomeBanner onModeSwitch={() => setMode('budget')} />
               ) : (

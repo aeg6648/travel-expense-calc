@@ -11,7 +11,7 @@ interface Props {
 }
 
 // TODO: Replace with your actual AdSense publisher ID
-const ADSENSE_CLIENT = 'ca-pub-XXXXXXXXXX';
+const ADSENSE_CLIENT = 'ca-pub-8900217994673939';
 
 export default function AdBanner({ slot, format = 'auto', className = '', label = '광고' }: Props) {
   useEffect(() => {
@@ -21,8 +21,10 @@ export default function AdBanner({ slot, format = 'auto', className = '', label 
     } catch {}
   }, []);
 
+  const adSize = format === 'vertical' ? 'min-w-[300px] w-[300px]' : 'w-full';
+
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${adSize} ${className}`}>
       <p className="text-[9px] text-slate-600 text-center mb-1 tracking-wider uppercase">{label}</p>
       <div className="rounded-xl overflow-hidden border border-slate-700/40 bg-slate-800/30">
         <ins
@@ -31,7 +33,7 @@ export default function AdBanner({ slot, format = 'auto', className = '', label 
           data-ad-client={ADSENSE_CLIENT}
           data-ad-slot={slot}
           data-ad-format={format}
-          data-full-width-responsive="true"
+          data-full-width-responsive={format === 'vertical' ? 'false' : 'true'}
         />
       </div>
     </div>
