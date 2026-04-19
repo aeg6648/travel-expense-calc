@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /privacy
+Disallow: /api/
+
+Sitemap: https://tripbuget.my/sitemap.xml

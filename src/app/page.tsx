@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Metadata } from 'next';
 import { TravelStyle } from '@/types/travel';
 import { getCountryByCode } from '@/lib/travel-data';
 import { getHolidayInfo } from '@/lib/holidays';
@@ -381,10 +382,12 @@ function InfoSection() {
   return (
     <div className="bg-slate-900/50 border border-slate-700/60 rounded-2xl p-8 space-y-6 max-w-5xl mx-auto mb-12">
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-slate-100">여행 경비 계산기 정보</h2>
+        <h2 className="text-2xl font-bold text-slate-100">여행 경비 계산기 - 국가별 여행 비용 예측 도구</h2>
         <p className="text-slate-300 leading-relaxed">
           본 여행 경비 계산기는 실제 블로그 후기와 여행자 리뷰를 기반으로 
           <strong> 신뢰할 수 있는 여행 경비 예측</strong>을 제공합니다. 
+          호주, 일본, 태국, 싱가포르, 미국, 유럽 등 주요 여행지의 경비를 
+          실시간 환율, 항공료, 성수기 정보를 반영하여 정확하게 계산합니다.
           단순한 통계가 아닌, 실제 여행 경험에 근거한 데이터로 
           각 국가별·여행 스타일별 경비 범위를 산출합니다.
         </p>
@@ -398,15 +401,16 @@ function InfoSection() {
             <li>공개 환율 데이터 (Open Exchange Rates)</li>
             <li>계절별 항공료 변동 지수</li>
             <li>국가별 주요 휴일 및 성수기 정보</li>
+            <li>호텔, 에어비앤비 숙박료 시장 데이터</li>
           </ul>
         </div>
 
         <div className="space-y-2">
           <h3 className="text-lg font-semibold text-slate-100">🎯 계산 기준</h3>
           <ul className="text-slate-400 text-sm space-y-1 list-disc list-inside">
-            <li><strong>알뜰 여행:</strong> 저예산 숙박·로컬 음식</li>
-            <li><strong>표준 여행:</strong> 중급 호텔·일반 식당</li>
-            <li><strong>프리미엄:</strong> 고급 숙박·고급 음식점</li>
+            <li><strong>알뜰 여행:</strong> 저예산 숙박·로컬 음식·대중교통</li>
+            <li><strong>표준 여행:</strong> 중급 호텔·일반 식당·택시</li>
+            <li><strong>프리미엄:</strong> 고급 숙박·고급 음식점·전세차</li>
             <li><strong>환율:</strong> 실시간 환율 데이터 반영</li>
           </ul>
         </div>

@@ -1,5 +1,12 @@
 'use client';
 
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: '개인정보처리방침 - TripBudget 여행 경비 계산기',
+  description: 'TripBudget의 개인정보처리방침입니다. 데이터 수집, 사용, 보호에 대한 정보를 확인하세요.',
+};
+
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-[#0f1117] text-slate-100 py-12 px-4">
