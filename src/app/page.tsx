@@ -103,7 +103,8 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-full mx-auto px-4 py-6">
+      <main className="max-w-full mx-auto px-4 py-6 space-y-8">
+        {!selectedCode && <InfoSection />}
         {mode === 'budget' ? (
           <BudgetFinder currentKrwPerUsd={krwPerUsd} onSelectCountry={handleSelectCountry} />
         ) : (
@@ -372,6 +373,66 @@ function WelcomeBanner({ onModeSwitch }: { onModeSwitch: () => void }) {
         <span>💰</span>
         <span>예산으로 여행지 찾기</span>
       </button>
+    </div>
+  );
+}
+
+function InfoSection() {
+  return (
+    <div className="bg-slate-900/50 border border-slate-700/60 rounded-2xl p-8 space-y-6 max-w-5xl mx-auto mb-12">
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold text-slate-100">여행 경비 계산기 정보</h2>
+        <p className="text-slate-300 leading-relaxed">
+          본 여행 경비 계산기는 실제 블로그 후기와 여행자 리뷰를 기반으로 
+          <strong> 신뢰할 수 있는 여행 경비 예측</strong>을 제공합니다. 
+          단순한 통계가 아닌, 실제 여행 경험에 근거한 데이터로 
+          각 국가별·여행 스타일별 경비 범위를 산출합니다.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-slate-100">📊 데이터 기반</h3>
+          <ul className="text-slate-400 text-sm space-y-1 list-disc list-inside">
+            <li>블로그 후기 및 여행자 리뷰 분석</li>
+            <li>공개 환율 데이터 (Open Exchange Rates)</li>
+            <li>계절별 항공료 변동 지수</li>
+            <li>국가별 주요 휴일 및 성수기 정보</li>
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-slate-100">🎯 계산 기준</h3>
+          <ul className="text-slate-400 text-sm space-y-1 list-disc list-inside">
+            <li><strong>알뜰 여행:</strong> 저예산 숙박·로컬 음식</li>
+            <li><strong>표준 여행:</strong> 중급 호텔·일반 식당</li>
+            <li><strong>프리미엄:</strong> 고급 숙박·고급 음식점</li>
+            <li><strong>환율:</strong> 실시간 환율 데이터 반영</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-4 border-t border-slate-700/60">
+        <h3 className="text-lg font-semibold text-slate-100">💡 사용 방법</h3>
+        <p className="text-slate-400 text-sm leading-relaxed">
+          왼쪽에서 여행할 국가, 여행 스타일, 출발 날짜를 선택하면 
+          해당 국가의 예상 경비 범위, 분기별 비용 추이, 실시간 환율, 
+          항공료 변동, 그리고 실제 여행자 후기를 한눈에 볼 수 있습니다. 
+          예산에 맞는 여행지를 찾고 싶다면 "예산으로 여행지 찾기" 기능을 사용하세요.
+        </p>
+      </div>
+
+      <div className="text-xs text-slate-500 pt-2 border-t border-slate-700/60">
+        <p>
+          본 계산기의 데이터는 실제 여행 경험 기반이나, 개인차와 변동성에 따라 
+          실제 경비가 다를 수 있습니다. 참고용으로만 사용해주세요.
+        </p>
+        <p className="mt-2">
+          <a href="/privacy" className="text-indigo-400 hover:text-indigo-300">
+            개인정보처리방침
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
