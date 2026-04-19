@@ -431,6 +431,26 @@ function InfoSection() {
           본 계산기의 데이터는 실제 여행 경험 기반이나, 개인차와 변동성에 따라 
           실제 경비가 다를 수 있습니다. 참고용으로만 사용해주세요.
         </p>
+        <p className="mt-3 space-y-2">
+          <span className="block font-semibold text-slate-400 mb-2">🌍 인기 여행지</span>
+          <span className="block">
+            <a href="/country/au" className="text-indigo-400 hover:text-indigo-300 mr-3">
+              호주 여행 경비
+            </a>
+            <a href="/country/jp" className="text-indigo-400 hover:text-indigo-300 mr-3">
+              일본 여행 가격
+            </a>
+            <a href="/country/th" className="text-indigo-400 hover:text-indigo-300 mr-3">
+              태국 여행 비용
+            </a>
+            <a href="/country/sg" className="text-indigo-400 hover:text-indigo-300 mr-3">
+              싱가포르
+            </a>
+            <a href="/country/us" className="text-indigo-400 hover:text-indigo-300">
+              미국 여행
+            </a>
+          </span>
+        </p>
         <p className="mt-2">
           <a href="/privacy" className="text-indigo-400 hover:text-indigo-300">
             개인정보처리방침
