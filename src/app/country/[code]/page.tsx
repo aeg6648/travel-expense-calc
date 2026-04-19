@@ -1,18 +1,12 @@
-'use client';
-
-import { Metadata } from 'next';
-import { useParams } from 'next/navigation';
 import { getCountryByCode } from '@/lib/travel-data';
 
-// 동적 메타데이터 생성 (클라이언트에서는 사용 불가, 참고용)
 export async function generateStaticParams() {
   const countries = ['AU', 'JP', 'TH', 'SG', 'US', 'GB', 'FR', 'DE', 'ES', 'IT', 'TR', 'VN', 'TW', 'HK', 'PH', 'ID'];
   return countries.map((code) => ({ code: code.toLowerCase() }));
 }
 
-export default function CountryPage() {
-  const params = useParams();
-  const code = (params.code as string)?.toUpperCase();
+export default function CountryPage({ params }: { params: { code: string } }) {
+  const code = params.code?.toUpperCase();
   const country = code ? getCountryByCode(code) : null;
 
   if (!country) {
