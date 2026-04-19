@@ -92,7 +92,16 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold text-slate-100">7. 문의</h2>
             <p className="text-slate-300">
               개인정보처리방침에 대한 질문이 있으신 경우, 
-              이 페이지 하단의 연락처로 문의해 주세요.
+              아래 이메일로 문의해 주세요.
+            </p>
+            <p className="text-slate-300 mt-3">
+              <strong>📧 문의 이메일:</strong>{' '}
+              <a 
+                href="mailto:snusmh@gmail.com" 
+                className="text-indigo-400 hover:text-indigo-300 underline"
+              >
+                snusmh@gmail.com
+              </a>
             </p>
           </section>
 
