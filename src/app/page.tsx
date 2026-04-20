@@ -267,13 +267,23 @@ export default function Home() {
                   }`}
                 >
                   <span
-                    role="img"
-                    aria-label="정보"
-                    title={hint}
-                    onClick={(e) => { e.stopPropagation(); alert(hint); }}
-                    className="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-600/40 text-slate-300/70 text-[9px] font-bold flex items-center justify-center hover:bg-slate-500/70 hover:text-slate-100 transition-colors cursor-help"
+                    className="group absolute top-1 right-1 z-30"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    i
+                    <span
+                      role="img"
+                      aria-label="정보"
+                      className="block w-4 h-4 rounded-full bg-slate-600/40 text-slate-300/70 text-[9px] font-bold flex items-center justify-center hover:bg-slate-500/70 hover:text-slate-100 transition-colors cursor-help"
+                    >
+                      i
+                    </span>
+                    <span
+                      className="pointer-events-none absolute bottom-full right-0 mb-2 w-60 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl shadow-black/40 text-[11px] leading-relaxed text-slate-100 text-left opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-150"
+                    >
+                      <span className="block font-semibold text-indigo-200 mb-0.5">{label}</span>
+                      {hint}
+                      <span className="absolute top-full right-3 -mt-[1px] block w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-white/20" />
+                    </span>
                   </span>
                   <span className="text-base sm:text-sm">{icon}</span>
                   <span className="text-[11px] sm:text-sm">{label}</span>
