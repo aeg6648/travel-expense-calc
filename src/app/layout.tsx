@@ -1,9 +1,24 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
+import { Playfair_Display, Inter } from 'next/font/google';
 import { LangProvider } from '@/context/LangContext';
 import { AuthProvider } from '@/context/AuthContext';
 import './globals.css';
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['900'],
+  style: ['italic'],
+  variable: '--font-playfair',
+  display: 'swap',
+});
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['600', '800'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: '트립비 | Trip-B - 국가별 여행 경비 계산기',
@@ -75,7 +90,7 @@ const ADSENSE_CLIENT = 'ca-pub-8900217994673939';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className="h-full">
+    <html lang="ko" className={`h-full ${playfair.variable} ${inter.variable}`}>
       <head>
         <link
           rel="alternate"
