@@ -749,7 +749,7 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
       <Field label={t.budget}>
         <div className="flex gap-2 mb-2 max-w-xs">
           <select value={currency} onChange={e => { setCurrency(e.target.value); setBudget(''); }} className="bg-slate-700/50 border border-slate-600 rounded-xl px-2 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors shrink-0 w-[88px]">
-            {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
+            {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{CURRENCY_FLAG[c] ?? '💱'} {c}</option>)}
           </select>
           <div className="relative flex-1 min-w-0">
             <input
@@ -948,9 +948,22 @@ const COUNTRY_DEFAULT_CURRENCY: Record<string, string> = {
   ZA: 'ZAR', MA: 'MAD', EG: 'EGP',
 };
 
+// Currency code → representative flag emoji for inline amount display.
+const CURRENCY_FLAG: Record<string, string> = {
+  KRW: '🇰🇷', JPY: '🇯🇵', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
+  CNY: '🇨🇳', HKD: '🇭🇰', TWD: '🇹🇼', SGD: '🇸🇬', THB: '🇹🇭',
+  VND: '🇻🇳', PHP: '🇵🇭', IDR: '🇮🇩', MYR: '🇲🇾', INR: '🇮🇳',
+  AUD: '🇦🇺', NZD: '🇳🇿', CAD: '🇨🇦', CHF: '🇨🇭', TRY: '🇹🇷',
+  AED: '🇦🇪', SAR: '🇸🇦', ILS: '🇮🇱', EGP: '🇪🇬', MAD: '🇲🇦',
+  MXN: '🇲🇽', BRL: '🇧🇷', ARS: '🇦🇷', PEN: '🇵🇪', CLP: '🇨🇱',
+  ZAR: '🇿🇦', SEK: '🇸🇪', NOK: '🇳🇴', DKK: '🇩🇰', PLN: '🇵🇱',
+  CZK: '🇨🇿', HUF: '🇭🇺', RON: '🇷🇴', MNT: '🇲🇳', NPR: '🇳🇵',
+};
+
 function fmtAmount(amount: number, currency: string): string {
   if (currency === 'KRW') return `${(amount / 10000).toLocaleString()}만원`;
-  return `${currency} ${Number(amount).toLocaleString()}`;
+  const flag = CURRENCY_FLAG[currency] ?? '💱';
+  return `${flag} ${Number(amount).toLocaleString()}`;
 }
 
 // ── Activity form with Google Places search ─────────────────────────
@@ -1138,7 +1151,7 @@ function ActivityForm({
                         <span className="text-xs font-medium text-slate-200 truncate max-w-[120px]">{place.name}</span>
                         {place.rating && <span className="text-[10px] text-amber-400 shrink-0">★{place.rating}</span>}
                         {place.costLocal > 0
-                          ? <span className="text-[10px] text-indigo-400 shrink-0">{place.currency} {place.costLocal.toLocaleString()}</span>
+                          ? <span className="text-[10px] text-indigo-400 shrink-0">{CURRENCY_FLAG[place.currency] ?? '💱'} {place.costLocal.toLocaleString()}</span>
                           : <span className="text-[10px] text-emerald-400 shrink-0">무료</span>
                         }
                       </button>
@@ -1233,7 +1246,7 @@ function ActivityForm({
         <label className="text-[11px] text-slate-400 block mb-1">{t.activityCost}</label>
         <div className="flex gap-2 mb-1.5 max-w-xs">
           <select value={currency} onChange={e => { setCurrency(e.target.value); setCost(''); }} className="bg-slate-700/70 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors shrink-0 w-[88px]">
-            {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
+            {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{CURRENCY_FLAG[c] ?? '💱'} {c}</option>)}
           </select>
           <div className="relative flex-1 min-w-0">
             <input
@@ -1638,7 +1651,7 @@ function PlaceExplorer({
                     <div>
                       {place.rating && <p className="text-[10px] text-amber-400">★ {place.rating}</p>}
                       <p className="text-[10px] text-indigo-400">
-                        {place.costLocal > 0 ? `${place.currency} ${place.costLocal.toLocaleString()}` : '무료'}
+                        {place.costLocal > 0 ? `${CURRENCY_FLAG[place.currency] ?? '💱'} ${place.costLocal.toLocaleString()}` : '무료'}
                       </p>
                     </div>
                     <button

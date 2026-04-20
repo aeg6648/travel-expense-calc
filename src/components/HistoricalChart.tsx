@@ -134,7 +134,15 @@ export default function HistoricalChart({ country, duration, currentKrwPerUsd, a
     : currentKrwPerLocal < 100
       ? currentKrwPerLocal.toFixed(1)
       : Math.round(currentKrwPerLocal).toLocaleString();
-  const currencyPair = country.currency === 'USD' ? 'USD/KRW' : `${country.currency}/KRW`;
+  const CURRENCY_FLAG_HC: Record<string, string> = {
+    KRW: '🇰🇷', JPY: '🇯🇵', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
+    CNY: '🇨🇳', HKD: '🇭🇰', TWD: '🇹🇼', SGD: '🇸🇬', THB: '🇹🇭',
+    VND: '🇻🇳', PHP: '🇵🇭', IDR: '🇮🇩', MYR: '🇲🇾', INR: '🇮🇳',
+    AUD: '🇦🇺', NZD: '🇳🇿', CAD: '🇨🇦', CHF: '🇨🇭', TRY: '🇹🇷',
+    AED: '🇦🇪', EGP: '🇪🇬', MAD: '🇲🇦', MXN: '🇲🇽', CZK: '🇨🇿',
+    MNT: '🇲🇳', NPR: '🇳🇵',
+  };
+  const currencyPair = `${CURRENCY_FLAG_HC[country.currency] ?? '💱'} / 🇰🇷`;
 
   return (
     <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/60 space-y-4">
