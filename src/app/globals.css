@@ -53,14 +53,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* 로고 비행기: 위로 사라졌다 아래서 올라오는 애니메이션 — 클릭 시 1회 재생 */
 @keyframes plane-fly-out-in {
-  0%   { transform: translateY(0);    opacity: 1; }
-  30%  { transform: translateY(-20px); opacity: 0; }
-  31%  { transform: translateY(20px);  opacity: 0; }
-  70%  { transform: translateY(20px);  opacity: 0; }
-  100% { transform: translateY(0);    opacity: 1; }
+  /* 출발 */
+  0%   { transform: translate(0px, 0px);    opacity: 1; }
+  /* 우상단 대각선으로 날아가며 사라짐 */
+  35%  { transform: translate(18px, -18px); opacity: 0; }
+  /* 좌하단으로 순간이동 (invisible) */
+  36%  { transform: translate(-18px, 18px); opacity: 0; }
+  65%  { transform: translate(-18px, 18px); opacity: 0; }
+  /* 우상단 대각선으로 날아들어오며 제자리 복귀 */
+  100% { transform: translate(0px, 0px);    opacity: 1; }
 }
 
 .plane-logo-clicked {
-  animation: plane-fly-out-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: plane-fly-out-in 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   display: inline-block;
 }
