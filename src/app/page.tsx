@@ -35,7 +35,6 @@ export default function Home() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [imgError, setImgError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [planeAnim, setPlaneAnim] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const announceRef = useRef<HTMLDivElement>(null);
   const [announcementsSeen, setAnnouncementsSeen] = useState(false);
@@ -46,12 +45,7 @@ export default function Home() {
   }, []);
 
   const handleLogoClick = () => {
-    handleModeChange('budget');
-    setPlaneAnim(false);
-    // 다음 프레임에 클래스 다시 추가해 애니메이션 재실행
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setPlaneAnim(true));
-    });
+    handleTabClick('itinerary');
   };
 
   useEffect(() => {
@@ -140,15 +134,9 @@ export default function Home() {
           <Link
             href="/"
             onClick={handleLogoClick}
-            className="flex items-center gap-2.5 group"
+            className="flex items-center group"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 transition-all">
-              <span
-                className={`text-base inline-block ${planeAnim ? 'plane-logo-clicked' : ''}`}
-                onAnimationEnd={() => setPlaneAnim(false)}
-              >✈️</span>
-            </div>
-            <TripBLogo size={32} className="hidden sm:block" />
+            <TripBLogo size={34} className="transition-transform group-hover:scale-[1.03]" />
           </Link>
 
           <div className="flex items-center gap-2">
@@ -305,39 +293,6 @@ export default function Home() {
               {t.heroSubtitle}
             </p>
 
-            {/* ── Vibes — clickable mood filters ── */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-none justify-start sm:justify-center">
-              {VIBES.map(v => {
-                const active = activeVibe === v.id;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => {
-                      const next = active ? null : v.id;
-                      setActiveVibe(next);
-                      if (next) {
-                        setSelectedCode(null);
-                        handleTabClick('country');
-                        // Smooth-scroll to the country section
-                        setTimeout(() => {
-                          document.getElementById('country-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 150);
-                      }
-                    }}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full backdrop-blur text-xs font-semibold transition-all shadow-md shadow-black/20 border ${
-                      active
-                        ? 'bg-white text-slate-900 border-white scale-[1.06] shadow-white/20'
-                        : `bg-gradient-to-br ${v.gradient.from} ${v.gradient.to} text-white border-white/25 hover:border-white/45 hover:scale-[1.04]`
-                    }`}
-                  >
-                    <span className="text-sm">{v.emoji}</span>
-                    <span>{v.label}</span>
-                    {active && <span className="text-[10px] opacity-60 ml-0.5">✕</span>}
-                  </button>
-                );
-              })}
-            </div>
-
             {/* ── Itinerary (hero) tab ── */}
             <button
               onClick={() => handleTabClick('itinerary')}
@@ -395,6 +350,43 @@ export default function Home() {
                   <span className="text-[11px] sm:text-sm">{label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Vibes rail — lives outside the clipped hero so hover/scale doesn't get cut ── */}
+        <div className="bg-slate-900 border-b border-slate-800/60">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-500 mr-1">무드로 찾기</span>
+              {VIBES.map(v => {
+                const active = activeVibe === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      const next = active ? null : v.id;
+                      setActiveVibe(next);
+                      if (next) {
+                        setSelectedCode(null);
+                        handleTabClick('country');
+                        setTimeout(() => {
+                          document.getElementById('country-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 150);
+                      }
+                    }}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      active
+                        ? 'bg-white text-slate-900 border-white'
+                        : `bg-gradient-to-br ${v.gradient.from} ${v.gradient.to} text-white border-white/20 hover:border-white/40`
+                    }`}
+                  >
+                    <span className="text-sm leading-none">{v.emoji}</span>
+                    <span>{v.label}</span>
+                    {active && <span className="text-[10px] opacity-60 ml-0.5">✕</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

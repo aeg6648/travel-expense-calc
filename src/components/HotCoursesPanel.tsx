@@ -130,7 +130,7 @@ export default function HotCoursesPanel() {
               key={i}
               onClick={() => setIdx(i)}
               aria-label={`${i + 1}번째 코스`}
-              className={`h-1 rounded-full transition-all ${i === idx ? 'w-5 bg-pink-300' : 'w-1.5 bg-white/40 hover:bg-white/60'}`}
+              className={`h-1 rounded-full transition-[width,background-color] duration-200 ${i === idx ? 'w-5 bg-pink-300' : 'w-1.5 bg-white/40'}`}
             />
           ))}
         </div>

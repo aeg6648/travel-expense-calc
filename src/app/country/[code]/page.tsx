@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       type: 'article',
       url,
       locale: 'ko_KR',
-      siteName: '트립비 | Trip-B',
+      siteName: 'TRIP-B',
     },
   };
 }
@@ -97,7 +97,7 @@ export default async function CountryPage({ params }: PageProps) {
         about: { '@type': 'Country', name: country.nameKR },
         publisher: {
           '@type': 'Organization',
-          name: '트립비 | Trip-B',
+          name: 'TRIP-B',
           url: 'https://www.tripbudget.my',
         },
       },

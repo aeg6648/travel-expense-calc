@@ -21,33 +21,30 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: '트립비 | Trip-B - 국가별 여행 경비 계산기',
-  description: '호주·일본·태국·싱가포르·베트남 등 국가별 여행 경비를 블로그 후기 기반으로 실시간 계산. 환율·항공권 반영',
+  title: 'TRIP-B · 당신의 플랜 B, 여행 플래너',
+  description:
+    '여행 일정 · 유명인 코스 · 여행 커뮤니티 · 실시간 환율 · 실제 블로그 후기 — 계획이 틀어져도 재밌는 플랜 B를 만들어드려요.',
   keywords: [
+    'TRIP-B',
     '트립비',
-    'Trip-B',
-    '여행 경비 계산기',
-    '해외여행 비용',
-    '여행 예산 계산',
-    '호주 여행 경비',
-    '호주 여행 비용 2026',
-    '일본 여행 경비',
-    '일본 도쿄 여행 비용',
-    '태국 방콕 여행 경비',
-    '태국 여행 비용 2026',
-    '싱가포르 여행 비용',
-    '베트남 여행 경비',
-    '필리핀 세부 여행 비용',
-    '대만 타이베이 여행 경비',
-    '홍콩 여행 비용',
-    '미국 여행 경비',
-    '유럽 여행 비용',
-    '여행 경비 얼마',
-    '여행 총 비용 계산',
-    '항공료 숙박비 계산',
-    '환율 여행 경비',
-    '배낭여행 비용',
-    '신혼여행 경비',
+    '여행 플래너',
+    '여행 일정 관리',
+    '여행 커뮤니티',
+    '유명인 여행지',
+    '연예인 해외 여행',
+    '여행 코스 추천',
+    '인기 여행지 2026',
+    '유럽 여행 코스',
+    '일본 여행 일정',
+    '동남아 여행 추천',
+    '여행 동선 짜기',
+    '여행 체크리스트',
+    '여행 팁',
+    '해외여행 앱',
+    '여행 가심비',
+    '여행 브이로그 장소',
+    '힙한 여행지',
+    '감성 여행지',
   ],
   icons: {
     icon: '/favicon.svg',
@@ -57,24 +54,24 @@ export const metadata: Metadata = {
     'format-detection': 'telephone=no',
   },
   openGraph: {
-    title: '트립비 | Trip-B - 국가별 여행 경비 실시간 계산',
-    description: '블로그 후기 기반 정확한 여행 경비 예측. 환율·항공권·성수기 반영',
+    title: 'TRIP-B · 당신의 플랜 B, 여행 플래너',
+    description: '일정 · 경험 · 커뮤니티까지 — 플랜 A가 틀어져도 재밌는 플랜 B.',
     type: 'website',
     url: 'https://www.tripbudget.my',
-    siteName: '트립비 | Trip-B',
+    siteName: 'TRIP-B',
     images: [
       {
         url: 'https://www.tripbudget.my/og-image.png',
         width: 1200,
         height: 630,
-        alt: '트립비 - 여행 경비 계산기',
+        alt: 'TRIP-B · 여행 플래너',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '트립비 | Trip-B',
-    description: '국가별 여행 비용을 한눈에 계산하세요',
+    title: 'TRIP-B · 여행 플래너',
+    description: '일정·경험·커뮤니티까지 — 당신의 플랜 B.',
   },
   alternates: {
     canonical: 'https://www.tripbudget.my',
@@ -95,7 +92,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link
           rel="alternate"
           type="application/rss+xml"
-          title="트립비 RSS 피드"
+          title="TRIP-B RSS 피드"
           href="https://www.tripbudget.my/rss.xml"
         />
         {/* Google Analytics */}
@@ -131,8 +128,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
-              name: '트립비 | Trip-B - 여행 경비 계산기',
-              description: '국가별 여행 경비를 실시간으로 예측하는 AI 기반 여행 계획 도구',
+              name: 'TRIP-B · 여행 플래너',
+              description: '여행 일정 · 유명인 코스 · 커뮤니티 · 실시간 환율까지 담은 한국 여행자용 플래너',
               url: 'https://www.tripbudget.my',
               inLanguage: 'ko-KR',
               applicationCategory: 'TravelApplication',
@@ -149,11 +146,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 priceCurrency: 'KRW',
               },
               featureList: [
-                '실시간 환율 계산',
-                '국가별 여행 경비 예측',
-                '블로그 후기 기반 데이터',
-                '항공료 및 숙박료 추정',
-                '여행 스타일별 경비 분석',
+                '드래그로 순서 바꾸는 여행 일정 관리',
+                '유명인·인플루언서가 다녀온 여행지 탐색',
+                '다른 여행자와 일정 공유·대화 커뮤니티',
+                '무드(미식·예술·힐링·야경…)별 여행지 필터',
+                '실시간 환율 · 항공권 성수기 반영',
+                '블로그 후기 기반 지출 데이터',
               ],
             }),
           }}
@@ -173,7 +171,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   name: '해외여행 경비는 어떻게 계산하나요?',
                   acceptedAnswer: {
                     '@type': 'Answer',
-                    text: '트립비는 실제 블로그 여행 후기 데이터와 실시간 환율, 항공권 가격, 숙박비, 식비, 교통비, 성수기 가중치를 종합해 국가별 여행 경비를 계산합니다. 알뜰·표준·프리미엄 3가지 스타일별로 예산이 제공됩니다.',
+                    text: 'TRIP-B는 여행 일정을 드래그로 짜고, 유명인·인플루언서가 실제로 다녀온 코스를 참고하고, 다른 여행자와 후기·팁을 주고받을 수 있는 한국 여행자용 플래너입니다. 보조 기능으로 실시간 환율과 블로그 후기 기반 지출 데이터, 항공권 성수기 가중치를 제공합니다.',
                   },
                 },
                 {

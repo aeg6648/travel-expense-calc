@@ -1,8 +1,8 @@
 import { COUNTRIES } from '@/lib/travel-data';
 
 const SITE_URL = 'https://www.tripbudget.my';
-const SITE_TITLE = '트립비 | Trip-B - 국가별 여행 경비 계산기';
-const SITE_DESC = '호주·일본·태국·싱가포르·베트남 등 국가별 여행 경비를 블로그 후기 기반으로 실시간 계산';
+const SITE_TITLE = 'TRIP-B · 여행 플래너';
+const SITE_DESC = '여행 일정·유명인 코스·커뮤니티·실시간 환율이 담긴 한국 여행자용 플래너';
 
 function escapeXml(s: string): string {
   return s
