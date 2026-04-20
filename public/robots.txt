@@ -4,4 +4,16 @@ Allow: /privacy
 Allow: /country/
 Disallow: /api/
 
-Sitemap: https://tripbuget.my/sitemap.xml
+User-agent: Yeti
+Allow: /
+Disallow: /api/
+
+User-agent: NaverBot
+Allow: /
+Disallow: /api/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+
+Sitemap: https://www.tripbudget.my/sitemap.xml

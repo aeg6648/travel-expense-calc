@@ -7,21 +7,6 @@ import { formatKRWShort, STYLE_COLORS } from '@/lib/utils';
 import { TravelStyle } from '@/types/travel';
 import { useLang } from '@/context/LangContext';
 
-const CURRENCIES = [
-  { code: 'KRW', symbol: '₩' },
-  { code: 'USD', symbol: '$' },
-  { code: 'EUR', symbol: '€' },
-  { code: 'JPY', symbol: '¥' },
-  { code: 'GBP', symbol: '£' },
-  { code: 'AUD', symbol: 'A$' },
-  { code: 'CAD', symbol: 'C$' },
-  { code: 'CNY', symbol: '¥' },
-  { code: 'SGD', symbol: 'S$' },
-  { code: 'THB', symbol: '฿' },
-  { code: 'HKD', symbol: 'HK$' },
-  { code: 'TWD', symbol: 'NT$' },
-];
-
 const ORIGIN_COUNTRIES = [
   { code: 'KR', flag: '🇰🇷' },
   { code: 'US', flag: '🇺🇸' },
@@ -53,8 +38,7 @@ interface Props {
 
 export default function BudgetFinder({ allRates, onSelectCountry, originCode, onOriginChange }: Props) {
   const { t } = useLang();
-  const [currency, setCurrency] = useState('KRW');
-  // KRW는 만원 단위로 입력 (150 → 1,500,000원), 그 외는 원래 단위
+  // 입력은 만원 단위 (150 → 1,500,000원)
   const [budgetInput, setBudgetInput] = useState('150');
   const [duration, setDuration] = useState(5);
   const [departureDate, setDepartureDate] = useState(() => {
@@ -67,16 +51,11 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
 
   const holidayInfo = getHolidayInfo(departureDate);
 
-  // Convert input budget to KRW
   const budgetKRW = useMemo(() => {
     const amount = parseFloat(budgetInput.replace(/,/g, '')) || 0;
-    if (currency === 'KRW') return amount * 10000; // 만원 단위 → 원
-    const krwPerUsd = allRates['KRW'] ?? 1450;
-    const currencyPerUsd = allRates[currency] ?? 1;
-    return Math.round((amount / currencyPerUsd) * krwPerUsd);
-  }, [budgetInput, currency, allRates]);
+    return amount * 10000;
+  }, [budgetInput]);
 
-  const currencySymbol = CURRENCIES.find(c => c.code === currency)?.symbol ?? '';
   const originMultiplier = ORIGIN_FLIGHT_MULTIPLIER[originCode] ?? 1.0;
 
   const results = useMemo(() => {
@@ -111,14 +90,6 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
 
   const formatKRWAmount = (krw: number) => `${formatKRWShort(krw)}원`;
 
-  const formatInCurrency = (krw: number) => {
-    if (currency === 'KRW') return formatKRWAmount(krw);
-    const krwPerUsd = allRates['KRW'] ?? 1450;
-    const currencyPerUsd = allRates[currency] ?? 1;
-    const converted = (krw / krwPerUsd) * currencyPerUsd;
-    return `${currencySymbol}${Math.round(converted).toLocaleString()}`;
-  };
-
   return (
     <div className="space-y-5">
       {/* Input card */}
@@ -126,62 +97,29 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
         {/* Budget input row */}
         <div>
           <label className="text-xs font-medium text-slate-300 block mb-2">{t.totalBudget}</label>
-          <div className="flex gap-2">
-            <select
-              value={currency}
-              onChange={e => setCurrency(e.target.value)}
-              className="bg-slate-700/60 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors shrink-0"
-            >
-              {CURRENCIES.map(c => (
-                <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
-              ))}
-            </select>
-            <div className="relative flex-1">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={budgetInput}
-                onChange={e => setBudgetInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                placeholder={currency === 'KRW' ? '150' : t.budgetPlaceholder}
-                className={`w-full bg-slate-700/60 border border-slate-600 rounded-xl px-4 py-2.5 text-lg font-semibold text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors ${currency === 'KRW' ? 'pr-16' : 'pr-4'}`}
-              />
-              {currency === 'KRW' && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400 pointer-events-none">
-                  만원
-                </span>
-              )}
-              {currency !== 'KRW' && budgetKRW > 0 && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                  ≈ {formatKRWAmount(budgetKRW)}
-                </span>
-              )}
-            </div>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={budgetInput}
+              onChange={e => setBudgetInput(e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="150"
+              className="w-full bg-slate-700/60 border border-slate-600 rounded-xl px-4 py-2.5 pr-16 text-lg font-semibold text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400 pointer-events-none">
+              만원
+            </span>
           </div>
         </div>
 
         {/* Quick budget chips */}
         <div className="flex flex-wrap gap-1.5">
-          {currency === 'KRW'
-            ? [50, 100, 150, 200, 300, 500].map(v => (
-                <button key={v} type="button" onClick={() => setBudgetInput(String(v))}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budgetInput === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:text-slate-200'}`}>
-                  {v}만원
-                </button>
-              ))
-            : currency === 'JPY'
-            ? [50000, 100000, 150000, 200000, 300000].map(v => (
-                <button key={v} type="button" onClick={() => setBudgetInput(String(v))}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budgetInput === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:text-slate-200'}`}>
-                  {(v/10000)}万円
-                </button>
-              ))
-            : [500, 1000, 1500, 2000, 3000].map(v => (
-                <button key={v} type="button" onClick={() => setBudgetInput(String(v))}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budgetInput === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:text-slate-200'}`}>
-                  {v}
-                </button>
-              ))
-          }
+          {[50, 100, 150, 200, 300, 500].map(v => (
+            <button key={v} type="button" onClick={() => setBudgetInput(String(v))}
+              className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budgetInput === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:text-slate-200'}`}>
+              {v}만원
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -280,7 +218,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
             {t.resultsTitle} <span className="text-indigo-400 ml-1">{withinBudget.length}{t.destinations}</span>
           </h2>
           <span className="text-xs text-slate-400">
-            {duration}{t.nightUnit} · {t.styleLabels[style]} · {currency === 'KRW' ? `${Number(budgetInput).toLocaleString()}만원` : `${currencySymbol}${Number(budgetInput).toLocaleString()}`}
+            {duration}{t.nightUnit} · {t.styleLabels[style]} · {Number(budgetInput).toLocaleString()}만원
           </span>
         </div>
 
@@ -322,11 +260,8 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                   </div>
                   <div className="flex items-baseline gap-1 mb-2">
                     <span className="text-xl font-bold text-slate-100">
-                      {currency === 'KRW' ? formatKRWAmount(total) : formatInCurrency(total)}
+                      {formatKRWAmount(total)}
                     </span>
-                    {currency !== 'KRW' && (
-                      <span className="text-xs text-slate-500">(≈ {formatKRWAmount(total)})</span>
-                    )}
                   </div>
                   <div className="w-full bg-slate-700/50 rounded-full h-1.5">
                     <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(budgetPct, 100)}%` }} />
@@ -360,7 +295,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                             <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.round((cost / total) * 100)}%` }} />
                           </div>
                           <span className="w-14 text-right text-slate-300 shrink-0">
-                            {currency === 'KRW' ? formatKRWAmount(cost) : formatInCurrency(cost)}
+                            {formatKRWAmount(cost)}
                           </span>
                           <span className="w-7 text-right text-slate-500 shrink-0">{Math.round((cost / total) * 100)}%</span>
                         </div>
@@ -395,7 +330,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                         <span className="text-xs text-red-400">+{budgetPct - 100}% {t.overBudgetSuffix}</span>
                       </div>
                       <p className="text-xs text-slate-500">
-                        {currency === 'KRW' ? formatKRWAmount(total) : formatInCurrency(total)} {t.estimatedCost}
+                        {formatKRWAmount(total)} {t.estimatedCost}
                       </p>
                     </div>
                   </div>

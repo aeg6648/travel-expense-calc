@@ -7,21 +7,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { code: rawCode } = await params;
   const country = getCountryByCode(rawCode?.toUpperCase() ?? '');
   if (!country) return { title: '국가를 찾을 수 없습니다 | 트립비' };
+  const url = `https://www.tripbudget.my/country/${rawCode.toLowerCase()}`;
   return {
-    title: `${country.nameKR} 여행 경비 완전 가이드 2025 | 트립비`,
+    title: `${country.nameKR} 여행 경비 완전 가이드 2026 | 트립비`,
     description: `${country.nameKR} 여행 경비 총정리. 알뜰·일반·프리미엄 스타일별 실제 예산, 항공료 ₩${country.flight.basePriceKRW.toLocaleString()}~, 숙박·식비·교통비 상세 분석`,
     keywords: [
       `${country.nameKR} 여행 경비`,
-      `${country.nameKR} 여행 비용`,
+      `${country.nameKR} 여행 비용 2026`,
       `${country.nameKR} 여행 예산`,
       `${country.nameKR} 항공료`,
       `${country.nameKR} 숙박비`,
+      `${country.nameKR} ${country.defaultDuration}박 경비`,
       ...country.tags,
     ],
+    alternates: {
+      canonical: url,
+      languages: { ko: url, 'x-default': url },
+    },
     openGraph: {
       title: `${country.nameKR} 여행 경비 가이드 | 트립비`,
       description: `${country.nameKR} ${country.defaultDuration}박 기준 알뜰 ₩${country.costs.budget.avg.toLocaleString()} ~ 프리미엄 ₩${country.costs.luxury.avg.toLocaleString()}`,
       type: 'article',
+      url,
+      locale: 'ko_KR',
+      siteName: '트립비 | Trip-B',
     },
   };
 }
@@ -60,8 +69,47 @@ export default async function CountryPage({ params }: PageProps) {
     .sort((a, b) => b.year - a.year)
     .slice(0, 4);
 
+  const countryUrl = `https://www.tripbudget.my/country/${code!.toLowerCase()}`;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: '트립비', item: 'https://www.tripbudget.my' },
+          { '@type': 'ListItem', position: 2, name: `${country.nameKR} 여행 경비`, item: countryUrl },
+        ],
+      },
+      {
+        '@type': 'TravelAction',
+        name: `${country.nameKR} 여행 경비 계산`,
+        inLanguage: 'ko-KR',
+        fromLocation: { '@type': 'Country', name: '대한민국' },
+        toLocation: { '@type': 'Country', name: country.nameKR },
+        url: countryUrl,
+      },
+      {
+        '@type': 'Article',
+        headline: `${country.nameKR} 여행 경비 완전 가이드 2026`,
+        inLanguage: 'ko-KR',
+        url: countryUrl,
+        about: { '@type': 'Country', name: country.nameKR },
+        publisher: {
+          '@type': 'Organization',
+          name: '트립비 | Trip-B',
+          url: 'https://www.tripbudget.my',
+        },
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-[#0f1117] text-slate-100">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="bg-gradient-to-b from-slate-800/60 to-[#0f1117] pt-10 pb-8 px-4">
         <div className="max-w-4xl mx-auto">
           <a href="/" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-400 transition-colors mb-6">
