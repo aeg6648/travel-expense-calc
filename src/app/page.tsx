@@ -222,17 +222,24 @@ export default function Home() {
               {([
                 { id: 'budget',    icon: '💰', label: t.modeBudget },
                 { id: 'country',   icon: '🗺️', label: t.modeCountry },
-                { id: 'itinerary', icon: '📅', label: t.modeItinerary },
-              ] as { id: Mode; icon: string; label: string }[]).map(({ id, icon, label }) => (
+                { id: 'itinerary', icon: '📅', label: t.modeItinerary, featured: true },
+              ] as { id: Mode; icon: string; label: string; featured?: boolean }[]).map(({ id, icon, label, featured }) => (
                 <button
                   key={id}
                   onClick={() => handleModeChange(id)}
-                  className={`flex-1 max-w-[200px] flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-4 rounded-2xl text-sm font-semibold transition-all border ${
+                  className={`relative flex-1 max-w-[200px] flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-4 rounded-2xl text-sm font-semibold transition-all border ${
                     mode === id
                       ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/50'
-                      : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600 hover:bg-slate-700/60'
+                      : featured
+                        ? 'bg-gradient-to-br from-amber-600/15 to-pink-600/15 border-amber-500/50 text-amber-100 hover:from-amber-600/25 hover:to-pink-600/25 hover:border-amber-400/70'
+                        : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600 hover:bg-slate-700/60'
                   }`}
                 >
+                  {featured && mode !== id && (
+                    <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 text-[9px] font-bold text-white shadow-md shadow-amber-900/40 animate-pulse">
+                      NEW
+                    </span>
+                  )}
                   <span className="text-base sm:text-sm">{icon}</span>
                   <span className="text-[11px] sm:text-sm">{label}</span>
                 </button>

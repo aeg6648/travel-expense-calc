@@ -155,6 +155,28 @@ function sortActivities(a: Activity, b: Activity): number {
   return (a.time || '').localeCompare(b.time || '');
 }
 
+// Haversine distance in km between two coordinate points.
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+
+// Recommend a transit mode + rough duration between two activities using straight-line distance.
+function suggestTransport(from: Activity, to: Activity): { icon: string; mode: string; minutes: number; km: number } | null {
+  if (from.lat === undefined || from.lng === undefined || to.lat === undefined || to.lng === undefined) return null;
+  const km = haversineKm({ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng });
+  if (km < 0.05) return null;
+  if (km < 1.2) return { icon: '🚶', mode: '도보', minutes: Math.max(5, Math.round(km * 13)), km };
+  if (km < 8)   return { icon: '🚇', mode: '지하철·버스', minutes: Math.round(10 + km * 3), km };
+  if (km < 40)  return { icon: '🚕', mode: '택시·승차공유', minutes: Math.round(8 + km * 1.8), km };
+  if (km < 400) return { icon: '🚄', mode: '고속철·기차', minutes: Math.round(30 + km * 0.4), km };
+  return { icon: '✈️', mode: '국내선 항공', minutes: Math.round(60 + km * 0.1), km };
+}
+
 // ── Live place recommendations hook ────────────────────────────────
 // Module-level cache so repeated opens/city-changes don't re-fetch
 const _recsCache: Record<string, RecommendedPlace[]> = {};
@@ -486,12 +508,25 @@ export default function ItineraryManager({ userId }: { userId: string }) {
 
               {dayActs.length === 0 && <p className="text-xs text-slate-600 pl-3">{t.noTripsHint}</p>}
 
-              {dayActs.map(act => {
+              {dayActs.map((act, idx) => {
                 const actColor = TYPE_COLORS[act.type];
                 const actIcon = TYPE_ICONS[act.type];
+                const prev = idx > 0 ? dayActs[idx - 1] : null;
+                const transit = prev ? suggestTransport(prev, act) : null;
                 return (
+                <div key={act.id}>
+                  {transit && (
+                    <div className="flex items-center gap-2 pl-5 py-0.5 text-[10px] text-slate-500">
+                      <span className="w-px h-3 bg-slate-700" />
+                      <span>{transit.icon}</span>
+                      <span className="text-slate-400">{transit.mode}</span>
+                      <span className="text-slate-600">·</span>
+                      <span>~{transit.minutes}분</span>
+                      <span className="text-slate-600">·</span>
+                      <span>{transit.km < 1 ? `${Math.round(transit.km * 1000)}m` : `${transit.km.toFixed(1)}km`}</span>
+                    </div>
+                  )}
                   <div
-                    key={act.id}
                     draggable
                     onDragStart={(e) => {
                       e.dataTransfer.setData('text/plain', act.id);
@@ -554,6 +589,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                       >{t.deleteTrip}</button>
                     </div>
                   </div>
+                </div>
                 );
               })}
             </div>
