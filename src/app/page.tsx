@@ -9,7 +9,6 @@ import { STYLE_LABELS } from '@/lib/utils';
 import { useLang } from '@/context/LangContext';
 import { useAuth } from '@/context/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
-import CurrencyTicker from '@/components/CurrencyTicker';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -53,7 +52,7 @@ export default function Home() {
   // Reset profile image error state when user changes (re-login)
   useEffect(() => { setImgError(false); }, [user?.sub]);
   const datePickerRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<Mode>('budget');
+  const [mode, setMode] = useState<Mode>('itinerary');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [style, setStyle] = useState<TravelStyle>('standard');
@@ -198,7 +197,6 @@ export default function Home() {
             )}
           </div>
         </div>
-        <CurrencyTicker rates={allRates} loading={rateLoading} />
       </header>
 
       <main>
@@ -220,9 +218,9 @@ export default function Home() {
             {/* ── BIG mode tabs ── */}
             <div className="flex gap-2 justify-center mb-0">
               {([
+                { id: 'itinerary', icon: '📅', label: t.modeItinerary, featured: true },
                 { id: 'budget',    icon: '💰', label: t.modeBudget },
                 { id: 'country',   icon: '🗺️', label: t.modeCountry },
-                { id: 'itinerary', icon: '📅', label: t.modeItinerary, featured: true },
               ] as { id: Mode; icon: string; label: string; featured?: boolean }[]).map(({ id, icon, label, featured }) => (
                 <button
                   key={id}
@@ -525,15 +523,47 @@ export default function Home() {
             user ? (
               <ItineraryManager userId={user.sub} />
             ) : (
-              <div className="flex flex-col items-center justify-center py-24 gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-3xl">
-                  📅
+              <div className="space-y-10">
+                <div className="flex flex-col items-center justify-center py-12 gap-5">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/30 to-pink-500/30 border border-amber-500/40 flex items-center justify-center text-3xl shadow-lg shadow-amber-900/30">
+                    📅
+                  </div>
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-slate-100 mb-2">{t.loginRequired}</h2>
+                    <p className="text-slate-400 text-sm max-w-sm">{t.loginDesc}</p>
+                  </div>
+                  <GoogleSignInButton size="large" text="signin_with" theme="outline" width={240} />
                 </div>
-                <div className="text-center">
-                  <h2 className="text-xl font-bold text-slate-100 mb-2">{t.loginRequired}</h2>
-                  <p className="text-slate-400 text-sm max-w-xs">{t.loginDesc}</p>
+
+                <div className="max-w-3xl mx-auto">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex-1 h-px bg-slate-700/60" />
+                    <span className="text-xs text-slate-500">로그인 전에 둘러보기</span>
+                    <div className="flex-1 h-px bg-slate-700/60" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleModeChange('budget')}
+                      className="group p-5 rounded-2xl border border-slate-700/60 bg-slate-800/60 hover:border-indigo-500/60 hover:bg-indigo-950/30 transition-all text-left"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">💰</span>
+                        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">{t.modeBudget}</h3>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">예산을 입력하면 그 금액으로 갈 수 있는 나라를 바로 찾아드려요.</p>
+                    </button>
+                    <button
+                      onClick={() => handleModeChange('country')}
+                      className="group p-5 rounded-2xl border border-slate-700/60 bg-slate-800/60 hover:border-emerald-500/60 hover:bg-emerald-950/30 transition-all text-left"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">🗺️</span>
+                        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-emerald-300 transition-colors">{t.modeCountry}</h3>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">가고 싶은 나라를 고르면 실제 블로그 지출 기반 경비 분석을 볼 수 있어요.</p>
+                    </button>
+                  </div>
                 </div>
-                <GoogleSignInButton size="large" text="signin_with" theme="outline" width={240} />
               </div>
             )
           )}
