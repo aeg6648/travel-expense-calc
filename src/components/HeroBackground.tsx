@@ -17,13 +17,25 @@ const IMAGES = [
   'https://images.unsplash.com/photo-1528127269322-539801943592?w=1600&q=80&auto=format&fit=crop', // Vietnam
 ];
 
+const LAST_KEY = 'tripb_hero_last_v1';
+
 export default function HeroBackground() {
   // Start with null so SSR and hydration don't try to pick a random image
   // (that would cause a hydration mismatch). On mount we pick one.
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    setSrc(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
+    // Exclude the image we showed on the previous visit so consecutive
+    // loads always differ — defeats both any lucky Math.random streaks
+    // and aggressive CDN caching of the shell.
+    let lastShown = '';
+    try { lastShown = localStorage.getItem(LAST_KEY) ?? ''; } catch { /* ignore */ }
+    const pool = IMAGES.length > 1 && lastShown
+      ? IMAGES.filter(x => x !== lastShown)
+      : IMAGES;
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    setSrc(chosen);
+    try { localStorage.setItem(LAST_KEY, chosen); } catch { /* ignore */ }
   }, []);
 
   return (
