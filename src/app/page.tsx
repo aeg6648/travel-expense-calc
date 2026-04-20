@@ -9,6 +9,7 @@ import { STYLE_LABELS } from '@/lib/utils';
 import { useLang } from '@/context/LangContext';
 import { useAuth } from '@/context/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
+import CurrencyTicker from '@/components/CurrencyTicker';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -71,15 +72,6 @@ export default function Home() {
   const [rateLoading, setRateLoading] = useState(true);
   const [originCode, setOriginCode] = useState('KR');
 
-  const ORIGIN_TO_CURRENCY: Record<string, string> = {
-    KR: 'USD', US: 'USD', JP: 'JPY', CN: 'CNY', AU: 'AUD',
-    GB: 'GBP', DE: 'EUR', FR: 'EUR', CA: 'CAD', SG: 'SGD', TW: 'TWD', HK: 'HKD',
-  };
-  const headerCurrency = ORIGIN_TO_CURRENCY[originCode] ?? 'USD';
-  const headerRate = headerCurrency === 'KRW'
-    ? 1
-    : Math.round((allRates['KRW'] ?? 1450) / (allRates[headerCurrency] ?? 1));
-
   const selectedCountry = selectedCode ? getCountryByCode(selectedCode) : null;
   const holidayInfo = getHolidayInfo(departureDate);
 
@@ -134,13 +126,6 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-900/30 border border-emerald-700/40 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-slate-400 text-[11px]">{headerCurrency}/KRW</span>
-              <span className="text-slate-100 font-semibold text-[11px]">
-                {rateLoading ? '…' : headerRate.toLocaleString()}
-              </span>
-            </div>
             {authLoading ? (
               <div className="w-[90px] h-7 rounded-xl bg-slate-800/80 border border-slate-700/60 animate-pulse" />
             ) : user ? (
@@ -213,6 +198,7 @@ export default function Home() {
             )}
           </div>
         </div>
+        <CurrencyTicker rates={allRates} loading={rateLoading} />
       </header>
 
       <main>
