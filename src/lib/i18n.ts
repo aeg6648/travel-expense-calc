@@ -34,11 +34,12 @@ const translations = {
     styleLabels: { budget: '알뜰', standard: '일반', luxury: '프리미엄' },
     regionLabels: {
       '전체': '전체',
-      '동아시아': '동아시아',
-      '동남아시아': '동남아시아',
+      '아시아': '아시아',
+      '동남아': '동남아',
       '유럽': '유럽',
+      '유럽/중동': '유럽/중동',
+      '미주': '미주',
       '오세아니아': '오세아니아',
-      '북미': '북미',
     },
     categoryLabels: {
       flight: '항공',
@@ -206,11 +207,12 @@ const translations = {
     styleLabels: { budget: 'Budget', standard: 'Standard', luxury: 'Premium' },
     regionLabels: {
       '전체': 'All',
-      '동아시아': 'East Asia',
-      '동남아시아': 'SE Asia',
+      '아시아': 'Asia',
+      '동남아': 'SE Asia',
       '유럽': 'Europe',
+      '유럽/중동': 'Europe / Middle East',
+      '미주': 'Americas',
       '오세아니아': 'Oceania',
-      '북미': 'N. America',
     },
     categoryLabels: {
       flight: 'Flight',
@@ -372,11 +374,12 @@ const translations = {
     styleLabels: { budget: '格安', standard: 'スタンダード', luxury: 'プレミアム' },
     regionLabels: {
       '전체': '全体',
-      '동아시아': '東アジア',
-      '동남아시아': '東南アジア',
+      '아시아': 'アジア',
+      '동남아': '東南アジア',
       '유럽': 'ヨーロッパ',
+      '유럽/중동': 'ヨーロッパ・中東',
+      '미주': '米州',
       '오세아니아': 'オセアニア',
-      '북미': '北米',
     },
     categoryLabels: {
       flight: '航空',
@@ -538,11 +541,12 @@ const translations = {
     styleLabels: { budget: '经济', standard: '标准', luxury: '豪华' },
     regionLabels: {
       '전체': '全部',
-      '동아시아': '东亚',
-      '동남아시아': '东南亚',
+      '아시아': '亚洲',
+      '동남아': '东南亚',
       '유럽': '欧洲',
+      '유럽/중동': '欧洲/中东',
+      '미주': '美洲',
       '오세아니아': '大洋洲',
-      '북미': '北美',
     },
     categoryLabels: {
       flight: '机票',

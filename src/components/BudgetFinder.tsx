@@ -318,7 +318,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                     <div className="flex items-center gap-2">
                       <img
                         src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
-                        alt={country.nameKR}
+                        alt={lang === 'ko' ? country.nameKR : country.name}
                         className="w-8 h-5 object-cover rounded shadow-md flex-shrink-0"
                       />
                       <div>
@@ -398,7 +398,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                   className="p-3 rounded-2xl border border-slate-700/40 bg-slate-800/60 hover:bg-slate-700/60 transition-all text-left opacity-60 hover:opacity-100"
                 >
                   <div className="flex items-center gap-2">
-                    <img src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`} alt={country.nameKR} className="w-7 h-5 object-cover rounded shadow-sm shrink-0" />
+                    <img src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`} alt={lang === 'ko' ? country.nameKR : country.name} className="w-7 h-5 object-cover rounded shadow-sm shrink-0" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-slate-300">{lang === 'ko' ? country.nameKR : country.name}</p>

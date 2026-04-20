@@ -11,16 +11,28 @@ export const metadata: Metadata = {
   keywords: [
     '트립비',
     'Trip-B',
-    '여행 경비',
-    '여행 비용',
+    '여행 경비 계산기',
+    '해외여행 비용',
+    '여행 예산 계산',
     '호주 여행 경비',
-    '일본 여행 가격',
-    '태국 여행 비용',
-    '싱가포르 여행',
-    '여행 예산',
-    '항공료',
-    '환율',
-    '숙박료',
+    '호주 여행 비용 2026',
+    '일본 여행 경비',
+    '일본 도쿄 여행 비용',
+    '태국 방콕 여행 경비',
+    '태국 여행 비용 2026',
+    '싱가포르 여행 비용',
+    '베트남 여행 경비',
+    '필리핀 세부 여행 비용',
+    '대만 타이베이 여행 경비',
+    '홍콩 여행 비용',
+    '미국 여행 경비',
+    '유럽 여행 비용',
+    '여행 경비 얼마',
+    '여행 총 비용 계산',
+    '항공료 숙박비 계산',
+    '환율 여행 경비',
+    '배낭여행 비용',
+    '신혼여행 경비',
   ],
   icons: {
     icon: '/favicon.svg',
@@ -48,6 +60,10 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: 'https://tripbuget.my',
+    languages: {
+      'ko': 'https://tripbuget.my',
+      'x-default': 'https://tripbuget.my',
+    },
   },
 };
 
@@ -94,11 +110,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               name: '트립비 | Trip-B - 여행 경비 계산기',
               description: '국가별 여행 경비를 실시간으로 예측하는 AI 기반 여행 계획 도구',
               url: 'https://tripbuget.my',
+              inLanguage: 'ko-KR',
               applicationCategory: 'TravelApplication',
+              audience: {
+                '@type': 'Audience',
+                geographicArea: {
+                  '@type': 'Country',
+                  name: 'South Korea',
+                },
+              },
               offers: {
                 '@type': 'Offer',
                 price: '0',
-                priceCurrency: 'USD',
+                priceCurrency: 'KRW',
               },
               featureList: [
                 '실시간 환율 계산',
@@ -112,6 +136,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="afterInteractive"
         />
         <meta name="google-site-verification" content="your-verification-code" />
+        <meta name="naver-site-verification" content="ab9c7b64d1277578ef377f6c41bcf88c94b0f479" />
         {/* Google Identity Services */}
         <Script
           src="https://accounts.google.com/gsi/client"

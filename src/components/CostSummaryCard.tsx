@@ -16,7 +16,14 @@ interface Props {
 }
 
 export default function CostSummaryCard({ country, style, duration, departureDate, currentKrwPerUsd, selectedCity, onStyleChange }: Props) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const displayName = lang === 'ko' ? country.nameKR : country.name;
+  const fmtKRW = (krw: number) => {
+    if (lang === 'ko') return `${formatKRWShort(krw)}원`;
+    if (krw >= 1_000_000) return `₩${(krw / 1_000_000).toFixed(1)}M`;
+    if (krw >= 1_000) return `₩${Math.round(krw / 1_000).toLocaleString()}K`;
+    return `₩${krw.toLocaleString()}`;
+  };
   const costs = country.costs[style];
   const durationRatio = duration / country.defaultDuration;
   const rateRatio = currentKrwPerUsd / 1380;
@@ -56,17 +63,17 @@ export default function CostSummaryCard({ country, style, duration, departureDat
         <div className="flex items-center gap-2">
           <img
             src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
-            alt={country.nameKR}
+            alt={displayName}
             className="w-10 h-7 object-cover rounded shadow-md"
           />
           <div>
-            <h2 className="text-xl font-bold text-slate-100">{country.nameKR}</h2>
+            <h2 className="text-xl font-bold text-slate-100">{displayName}</h2>
             <p className="text-xs text-slate-400">{country.description}</p>
           </div>
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-400">{duration}{t.nightUnit} · {t.styleLabels[style]}{selectedCity ? ` · ${selectedCity}` : ''}</p>
-          <p className="text-2xl font-bold text-slate-100 mt-0.5">{formatKRWShort(total)}원</p>
+          <p className="text-2xl font-bold text-slate-100 mt-0.5">{fmtKRW(total)}</p>
           <p className="text-[10px] text-slate-500 mt-0.5">
             {blogBasedTotal ? t.blogReviewAvg(matchingBlogEntries.length) : t.estimated}
           </p>
@@ -112,7 +119,7 @@ export default function CostSummaryCard({ country, style, duration, departureDat
                       {t.styleLabels[s]}
                     </p>
                     <p className={`text-sm font-bold ${isActive ? c.val : 'text-slate-400'}`}>
-                      {avgKRW ? `${formatKRWShort(avgKRW)}원` : t.noData}
+                      {avgKRW ? fmtKRW(avgKRW) : t.noData}
                     </p>
                     <p className={`text-[9px] mt-0.5 ${isActive ? c.label : 'text-slate-500'}`}>
                       {t.reviewCount(count)}{isActive ? ` · ${t.selected}` : ''}
@@ -138,7 +145,7 @@ export default function CostSummaryCard({ country, style, duration, departureDat
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-500">{pct}%</span>
-                  <span className="text-slate-200 font-medium w-20 text-right">{formatKRWShort(value)}원</span>
+                  <span className="text-slate-200 font-medium w-20 text-right">{fmtKRW(value)}</span>
                 </div>
               </div>
               <div className="w-full bg-slate-700/50 rounded-full h-1.5">
