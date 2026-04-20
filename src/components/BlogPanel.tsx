@@ -12,6 +12,16 @@ interface BlogPost {
   postDate: string;
 }
 
+interface GPlace {
+  placeId: string;
+  name: string;
+  address: string;
+  rating?: number;
+  userRatingsTotal?: number;
+  types: string[];
+  photoRef?: string | null;
+}
+
 interface Props {
   country: Country;
   duration: number;
@@ -38,6 +48,8 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
   const [loading, setLoading] = useState(false);
   const [noApi, setNoApi] = useState(false);
   const [activeStyle, setActiveStyle] = useState<DerivedStyle>('standard');
+  const [gPlaces, setGPlaces] = useState<GPlace[]>([]);
+  const [gLoading, setGLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -52,6 +64,17 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
       .catch(() => setNoApi(true))
       .finally(() => setLoading(false));
   }, [country.nameKR]);
+
+  useEffect(() => {
+    const q = selectedCity ? `${selectedCity} 여행 관광지` : `${country.nameKR} 여행 관광지`;
+    setGLoading(true);
+    setGPlaces([]);
+    fetch(`/api/places?q=${encodeURIComponent(q)}&lang=ko`)
+      .then(r => r.json())
+      .then(data => setGPlaces(data.places || []))
+      .catch(() => {})
+      .finally(() => setGLoading(false));
+  }, [country.nameKR, selectedCity]);
 
   const filteredBlogData = selectedCity
     ? country.blogData.filter(d => !d.city || d.city === selectedCity)
@@ -137,6 +160,51 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {(gLoading || gPlaces.length > 0) && (
+        <div className="space-y-2 pt-2 border-t border-slate-700/50">
+          <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full bg-blue-500/80" />
+            Google 인기 장소
+          </p>
+          {gLoading && (
+            <div className="animate-pulse space-y-1.5 p-3 rounded-xl bg-slate-700/30">
+              <div className="h-3 bg-slate-700 rounded w-2/3" />
+              <div className="h-2 bg-slate-700/50 rounded w-1/2" />
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            {gPlaces.map(place => (
+              <a
+                key={place.placeId}
+                href={`https://www.google.com/maps/place/?q=place_id:${place.placeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-3 rounded-xl bg-slate-700/30 hover:bg-slate-700/60 border border-slate-700/40 hover:border-blue-600/40 transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-medium text-slate-200 group-hover:text-blue-300 transition-colors leading-tight">
+                    {place.name}
+                  </p>
+                  {place.rating != null && (
+                    <span className="shrink-0 text-[11px] font-semibold text-amber-400 flex items-center gap-0.5">
+                      ★ {place.rating.toFixed(1)}
+                      {place.userRatingsTotal != null && (
+                        <span className="text-[10px] text-slate-500 font-normal ml-0.5">
+                          ({place.userRatingsTotal.toLocaleString()})
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                {place.address && (
+                  <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{place.address}</p>
+                )}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
