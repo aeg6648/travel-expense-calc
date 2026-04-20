@@ -11,6 +11,9 @@ export interface RecommendedPlace {
   transportPreset?: { mode: string; route: string };
   description?: string;
   rating?: number;
+  placeId?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export const RECOMMENDED_PLACES: Record<string, RecommendedPlace[]> = {

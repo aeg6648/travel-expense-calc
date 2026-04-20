@@ -150,6 +150,7 @@ export async function GET(req: NextRequest) {
     const costLocal = Math.round(costUSD * curInfo.rate);
     const costKRW = Math.round(costUSD * 1380);
     const address: string = p.formatted_address ?? '';
+    const geo = p.geometry?.location as { lat?: number; lng?: number } | undefined;
     return {
       id: p.place_id as string,
       name: p.name as string,
@@ -162,6 +163,8 @@ export async function GET(req: NextRequest) {
       description: address.replace(/^(.+?),\s*.+?,.*$/, '$1'),
       rating: p.rating as number | undefined,
       placeId: p.place_id as string,
+      lat: geo?.lat,
+      lng: geo?.lng,
     };
   });
 

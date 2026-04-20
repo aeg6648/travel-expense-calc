@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       types: (p.types as string[] | undefined)?.slice(0, 3) ?? [],
       photoRef: ((p.photos as Record<string, unknown>[] | undefined)?.[0]?.photo_reference as string) ?? null,
       location: (p.geometry as Record<string, unknown> | undefined)?.location ?? null,
+      priceLevel: p.price_level as number | undefined,
     }));
 
     return NextResponse.json({ places });

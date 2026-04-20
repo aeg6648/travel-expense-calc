@@ -20,6 +20,9 @@ interface Activity {
   city?: string;
   menuItems?: string[];
   transportMode?: string;
+  order?: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface Trip {
@@ -42,6 +45,44 @@ interface PlaceSuggestion {
   rating?: number;
   userRatingsTotal?: number;
   types: string[];
+  priceLevel?: number;
+  location?: { lat: number; lng: number };
+}
+
+// Google price_level (0–4) → local-currency estimate per visit.
+// Table mirrors /api/places/recommend so the form prefill stays consistent.
+const PRICE_LEVEL_LOCAL_BY_CURRENCY: Record<string, readonly number[]> = {
+  KRW: [0, 12000, 30000, 80000, 180000],
+  JPY: [0, 1500, 3500, 9000, 20000],
+  USD: [0, 12, 28, 65, 140],
+  EUR: [0, 11, 25, 60, 130],
+  GBP: [0, 10, 22, 55, 120],
+  CNY: [0, 80, 200, 500, 1100],
+  THB: [0, 400, 1000, 2500, 5500],
+  VND: [0, 250000, 600000, 1500000, 3500000],
+  TWD: [0, 350, 900, 2200, 5000],
+  SGD: [0, 15, 35, 85, 180],
+  HKD: [0, 90, 220, 550, 1200],
+  PHP: [0, 650, 1500, 3800, 8000],
+  IDR: [0, 150000, 400000, 1000000, 2200000],
+  AUD: [0, 18, 42, 100, 210],
+  CAD: [0, 16, 38, 90, 190],
+  CHF: [0, 11, 26, 60, 130],
+  TRY: [0, 400, 900, 2200, 4800],
+  AED: [0, 45, 100, 240, 520],
+  EGP: [0, 600, 1400, 3300, 7000],
+  MAD: [0, 120, 280, 650, 1400],
+  INR: [0, 1000, 2400, 5500, 12000],
+  MXN: [0, 200, 480, 1100, 2400],
+  NZD: [0, 20, 45, 110, 230],
+  MYR: [0, 55, 130, 300, 650],
+  NPR: [0, 1500, 3500, 8500, 18000],
+  MNT: [0, 40000, 95000, 220000, 500000],
+};
+function priceLevelToLocal(priceLevel: number | undefined, currency: string): number {
+  if (priceLevel === undefined) return 0;
+  const table = PRICE_LEVEL_LOCAL_BY_CURRENCY[currency] ?? PRICE_LEVEL_LOCAL_BY_CURRENCY.USD;
+  return table[Math.max(0, Math.min(4, priceLevel))] ?? 0;
 }
 
 const TYPE_COLORS: Record<Activity['type'], string> = {
@@ -103,6 +144,15 @@ function saveTrips(userId: string, trips: Trip[]) {
 function tripDays(trip: Trip): number {
   if (!trip.startDate || !trip.endDate) return 1;
   return Math.max(1, Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000));
+}
+
+// Manual drag order takes precedence; fall back to time, then to insertion order.
+function sortActivities(a: Activity, b: Activity): number {
+  const ao = a.order, bo = b.order;
+  if (ao !== undefined && bo !== undefined && ao !== bo) return ao - bo;
+  if (ao !== undefined && bo === undefined) return -1;
+  if (ao === undefined && bo !== undefined) return 1;
+  return (a.time || '').localeCompare(b.time || '');
 }
 
 // ── Live place recommendations hook ────────────────────────────────
@@ -201,6 +251,69 @@ export default function ItineraryManager({ userId }: { userId: string }) {
     if (!selectedTrip) return;
     updateTrip({ ...selectedTrip, activities: selectedTrip.activities.map(a => a.id === act.id ? act : a) });
     setEditingActivity(null);
+  };
+
+  const reorderActivity = (day: number, fromId: string, toId: string) => {
+    if (!selectedTrip || fromId === toId) return;
+    const dayActs = [...selectedTrip.activities]
+      .filter(a => a.day === day)
+      .sort(sortActivities);
+    const fromIdx = dayActs.findIndex(a => a.id === fromId);
+    const toIdx = dayActs.findIndex(a => a.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [moved] = dayActs.splice(fromIdx, 1);
+    dayActs.splice(toIdx, 0, moved);
+    const orderMap = new Map(dayActs.map((a, i) => [a.id, i]));
+    updateTrip({
+      ...selectedTrip,
+      activities: selectedTrip.activities.map(a =>
+        orderMap.has(a.id) ? { ...a, order: orderMap.get(a.id)! } : a
+      ),
+    });
+  };
+
+  const optimizeDayRoute = (day: number) => {
+    if (!selectedTrip) return;
+    const dayActs = selectedTrip.activities
+      .filter(a => a.day === day)
+      .sort(sortActivities);
+    const withCoords = dayActs.filter(a => a.lat !== undefined && a.lng !== undefined);
+    if (withCoords.length < 3) {
+      alert('위치 좌표가 있는 활동이 3개 이상이어야 최적화할 수 있어요.');
+      return;
+    }
+    // Nearest-neighbor TSP heuristic starting from the earliest-time activity
+    const haversine = (a: Activity, b: Activity) => {
+      const toRad = (d: number) => (d * Math.PI) / 180;
+      const dLat = toRad((b.lat ?? 0) - (a.lat ?? 0));
+      const dLng = toRad((b.lng ?? 0) - (a.lng ?? 0));
+      const lat1 = toRad(a.lat ?? 0), lat2 = toRad(b.lat ?? 0);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      return 2 * Math.asin(Math.sqrt(h));
+    };
+    const start = withCoords.find(a => a.time) ?? withCoords[0];
+    const route: Activity[] = [start];
+    const remaining = withCoords.filter(a => a.id !== start.id);
+    while (remaining.length > 0) {
+      const last = route[route.length - 1];
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const d = haversine(last, remaining[i]);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      route.push(...remaining.splice(bestIdx, 1));
+    }
+    // Activities without coords keep their relative order, appended at the end
+    const noCoord = dayActs.filter(a => a.lat === undefined || a.lng === undefined);
+    const finalOrder = [...route, ...noCoord];
+    const orderMap = new Map(finalOrder.map((a, i) => [a.id, i]));
+    updateTrip({
+      ...selectedTrip,
+      activities: selectedTrip.activities.map(a =>
+        orderMap.has(a.id) ? { ...a, order: orderMap.get(a.id)! } : a
+      ),
+    });
   };
 
   const [showMap, setShowMap] = useState(false);
@@ -340,7 +453,8 @@ export default function ItineraryManager({ userId }: { userId: string }) {
         {Array.from({ length: days }, (_, i) => i + 1).map(day => {
           const dayActs = selectedTrip.activities
             .filter(a => a.day === day)
-            .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            .sort(sortActivities);
+          const coordCount = dayActs.filter(a => a.lat !== undefined && a.lng !== undefined).length;
           return (
             <div key={day} className="space-y-2">
               <div className="flex items-center gap-2">
@@ -352,6 +466,15 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                     return <span className="text-slate-500 ml-1.5">{d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>;
                   })()}
                 </span>
+                {coordCount >= 3 && (
+                  <button
+                    onClick={() => optimizeDayRoute(day)}
+                    className="text-[10px] px-2 py-0.5 rounded-full border border-emerald-700/50 text-emerald-400 hover:bg-emerald-900/20 transition-colors"
+                    title="위치 좌표 기반으로 최단 동선 정렬"
+                  >
+                    🧭 동선 최적화
+                  </button>
+                )}
                 <div className="flex-1 h-px bg-slate-700/60" />
                 <span className="text-[10px] text-slate-500">
                   {(() => {
@@ -367,7 +490,22 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                 const actColor = TYPE_COLORS[act.type];
                 const actIcon = TYPE_ICONS[act.type];
                 return (
-                  <div key={act.id} className={`p-3 rounded-xl border ${actColor} flex items-start gap-3`}>
+                  <div
+                    key={act.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', act.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const fromId = e.dataTransfer.getData('text/plain');
+                      if (fromId) reorderActivity(day, fromId, act.id);
+                    }}
+                    className={`p-3 rounded-xl border ${actColor} flex items-start gap-3 cursor-move hover:brightness-110 transition-all`}
+                  >
+                    <span className="text-slate-500 mt-1 select-none" aria-hidden>⋮⋮</span>
                     <span className="text-lg mt-0.5 shrink-0">{actIcon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -799,6 +937,8 @@ function ActivityForm({
   const [locationQuery, setLocationQuery] = useState(editing?.location ?? '');
   const [locationConfirmed, setLocationConfirmed] = useState(editing?.location ?? '');
   const [locationPlaceId, setLocationPlaceId] = useState(editing?.locationPlaceId ?? '');
+  const [placeLat, setPlaceLat] = useState<number | undefined>(editing?.lat);
+  const [placeLng, setPlaceLng] = useState<number | undefined>(editing?.lng);
   const [rating, setRating] = useState(editing?.rating);
   const toDisplay = (rawKRW: number, cur: string) => cur === 'KRW' ? String(rawKRW / 10000) : String(rawKRW);
   const [cost, setCost] = useState(editing ? toDisplay(editing.cost, editing.currency) : '');
@@ -823,6 +963,9 @@ function ActivityForm({
     setTitle(place.name);
     setLocationQuery(place.nameLocal);
     setLocationConfirmed(place.nameLocal);
+    if (place.placeId) setLocationPlaceId(place.placeId);
+    if (place.lat !== undefined) setPlaceLat(place.lat);
+    if (place.lng !== undefined) setPlaceLng(place.lng);
     setType(place.type === 'food' ? 'food' : place.type === 'transport' ? 'transport' : place.type === 'accommodation' ? 'accommodation' : 'activity');
     setCurrency(place.currency);
     setCost(place.currency === 'KRW' ? String(place.costKRW / 10000) : String(place.costLocal));
@@ -864,6 +1007,14 @@ function ActivityForm({
     setLocationPlaceId(p.placeId);
     setRating(p.rating);
     if (!title) setTitle(p.name);
+    // Pre-fill cost from Google price_level if nothing entered yet
+    if (!cost && p.priceLevel !== undefined) {
+      const local = priceLevelToLocal(p.priceLevel, currency);
+      if (local > 0) {
+        setCost(currency === 'KRW' ? String(Math.round(local / 10000)) : String(local));
+      }
+    }
+    if (p.location) { setPlaceLat(p.location.lat); setPlaceLng(p.location.lng); }
     setShowSuggestions(false);
   };
 
@@ -878,6 +1029,8 @@ function ActivityForm({
       city: filterCity || undefined,
       menuItems: selectedMenuItems.length > 0 ? selectedMenuItems : undefined,
       transportMode: transportMode.trim() || undefined,
+      lat: placeLat,
+      lng: placeLng,
     });
   };
 
@@ -1292,7 +1445,7 @@ function PlaceExplorer({
         time: e.time,
         title: e.place.name,
         location: e.place.nameLocal,
-        locationPlaceId: undefined,
+        locationPlaceId: e.place.placeId,
         rating: e.place.rating,
         cost: e.place.currency === 'KRW' ? e.place.costKRW : e.place.costLocal,
         currency: e.place.currency,
@@ -1306,6 +1459,8 @@ function PlaceExplorer({
         transportMode: e.place.transportPreset
           ? e.place.transportPreset.mode + (e.place.transportPreset.route ? ` — ${e.place.transportPreset.route}` : '')
           : undefined,
+        lat: e.place.lat,
+        lng: e.place.lng,
       };
     });
     onConfirm(acts);
