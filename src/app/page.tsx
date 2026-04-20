@@ -14,6 +14,7 @@ import HeroBackground from '@/components/HeroBackground';
 import CelebrityPanel from '@/components/CelebrityPanel';
 import HotCoursesPanel from '@/components/HotCoursesPanel';
 import TravelTipsPanel from '@/components/TravelTipsPanel';
+import { VIBES, getVibe, type VibeId } from '@/lib/vibes';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -71,6 +72,7 @@ export default function Home() {
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('itinerary');
   const [communityAuthorFilter, setCommunityAuthorFilter] = useState<string | undefined>(undefined);
+  const [activeVibe, setActiveVibe] = useState<VibeId | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [style, setStyle] = useState<TravelStyle>('standard');
@@ -292,7 +294,6 @@ export default function Home() {
 
           <div className="relative max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-medium text-white/90 mb-4 uppercase tracking-[0.2em]">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Plan B for your trip
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05] mb-4 text-white">
@@ -304,26 +305,37 @@ export default function Home() {
               {t.heroSubtitle}
             </p>
 
-            {/* ── Vibes — experience-first mood pills ── */}
+            {/* ── Vibes — clickable mood filters ── */}
             <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-none justify-start sm:justify-center">
-              {[
-                { emoji: '🍜', label: '로컬 미식', from: 'from-amber-500/35',  to: 'to-rose-500/25' },
-                { emoji: '🎨', label: '예술·갤러리', from: 'from-violet-500/35', to: 'to-indigo-500/25' },
-                { emoji: '🏄', label: '액티비티',  from: 'from-cyan-500/35',   to: 'to-emerald-500/25' },
-                { emoji: '📸', label: '포토제닉',  from: 'from-pink-500/35',   to: 'to-fuchsia-500/25' },
-                { emoji: '🌿', label: '힐링',      from: 'from-emerald-500/35', to: 'to-teal-500/25' },
-                { emoji: '🌃', label: '야경·나이트', from: 'from-slate-500/40', to: 'to-indigo-500/25' },
-                { emoji: '🛍️', label: '쇼핑 트립',  from: 'from-pink-500/30',  to: 'to-amber-500/25' },
-                { emoji: '⛺', label: '로드트립',   from: 'from-orange-500/35', to: 'to-red-500/25' },
-              ].map(v => (
-                <span
-                  key={v.label}
-                  className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-br ${v.from} ${v.to} backdrop-blur border border-white/25 text-xs font-semibold text-white hover:border-white/45 hover:scale-[1.04] transition-all cursor-default shadow-md shadow-black/20`}
-                >
-                  <span className="text-sm">{v.emoji}</span>
-                  <span>{v.label}</span>
-                </span>
-              ))}
+              {VIBES.map(v => {
+                const active = activeVibe === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      const next = active ? null : v.id;
+                      setActiveVibe(next);
+                      if (next) {
+                        setSelectedCode(null);
+                        handleTabClick('country');
+                        // Smooth-scroll to the country section
+                        setTimeout(() => {
+                          document.getElementById('country-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 150);
+                      }
+                    }}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full backdrop-blur text-xs font-semibold transition-all shadow-md shadow-black/20 border ${
+                      active
+                        ? 'bg-white text-slate-900 border-white scale-[1.06] shadow-white/20'
+                        : `bg-gradient-to-br ${v.gradient.from} ${v.gradient.to} text-white border-white/25 hover:border-white/45 hover:scale-[1.04]`
+                    }`}
+                  >
+                    <span className="text-sm">{v.emoji}</span>
+                    <span>{v.label}</span>
+                    {active && <span className="text-[10px] opacity-60 ml-0.5">✕</span>}
+                  </button>
+                );
+              })}
             </div>
 
             {/* ── Itinerary (hero) tab ── */}
@@ -474,7 +486,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
+              <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} vibeId={activeVibe} onClearVibe={() => setActiveVibe(null)} />
             </div>
           )}
 
@@ -615,7 +627,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
+                <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} vibeId={activeVibe} onClearVibe={() => setActiveVibe(null)} />
                 <AdBanner slot="1111111111" format="rectangle" />
               </div>
 

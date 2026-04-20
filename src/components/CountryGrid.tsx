@@ -5,11 +5,14 @@ import { COUNTRIES, REGIONS } from '@/lib/travel-data';
 import { formatKRWShort } from '@/lib/utils';
 import { useState } from 'react';
 import { useLang } from '@/context/LangContext';
+import { getVibe, type VibeId } from '@/lib/vibes';
 
 interface Props {
   selectedCode: string | null;
   onSelect: (code: string) => void;
   style: 'budget' | 'standard' | 'luxury';
+  vibeId?: VibeId | null;
+  onClearVibe?: () => void;
 }
 
 const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallbackTo: string }> = {
@@ -29,22 +32,48 @@ const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallba
   IT: { url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#14532d', fallbackTo: '#15803d' },
 };
 
-export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
+export default function CountryGrid({ selectedCode, onSelect, style, vibeId, onClearVibe }: Props) {
   const { t } = useLang();
   const [region, setRegion] = useState<string>('전체');
   const [search, setSearch] = useState('');
 
+  const vibe = getVibe(vibeId);
+  const vibeSet = vibe ? new Set(vibe.countries) : null;
+
   const filtered = COUNTRIES.filter(c => {
+    const matchVibe = !vibeSet || vibeSet.has(c.code);
     const matchRegion = region === '전체' || c.region === region;
     const matchSearch = !search ||
       c.nameKR.includes(search) ||
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.tags.some(t => t.includes(search));
-    return matchRegion && matchSearch;
+    return matchVibe && matchRegion && matchSearch;
   });
+  // When a vibe is active, keep the suggested order (best-fit first)
+  if (vibe) {
+    filtered.sort((a, b) => vibe.countries.indexOf(a.code) - vibe.countries.indexOf(b.code));
+  }
 
   return (
     <div className="space-y-4">
+      {vibe && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-indigo-500/40 bg-gradient-to-r from-indigo-900/40 via-slate-800 to-slate-800">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xl">{vibe.emoji}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">무드 필터</p>
+              <p className="text-sm font-semibold text-slate-100 truncate">{vibe.label} 여행지 {filtered.length}곳</p>
+            </div>
+          </div>
+          {onClearVibe && (
+            <button
+              onClick={onClearVibe}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors shrink-0"
+            >필터 해제</button>
+          )}
+        </div>
+      )}
+
       <div className="relative">
         <input
           type="text"

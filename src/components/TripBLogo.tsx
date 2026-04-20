@@ -3,68 +3,72 @@ interface Props {
   className?: string;
 }
 
-// TRIP-B wordmark. Uses Playfair Display (loaded globally via next/font
-// so it renders identically everywhere) for the italic B base, and Inter
-// for the tracked "TRIP" sitting atop it.
-export default function TripBLogo({ size = 36, className = '' }: Props) {
+// Modern horizontal wordmark: "Trip" in thin italic + a flowing arrow +
+// a big gradient "B". Uses Playfair Display (loaded via next/font) for
+// the italic letterforms and Inter for the small supporting text.
+export default function TripBLogo({ size = 32, className = '' }: Props) {
   return (
     <svg
-      viewBox="0 0 92 54"
+      viewBox="0 0 140 44"
       height={size}
       aria-label="TRIP-B"
       role="img"
       className={`select-none ${className}`}
     >
       <defs>
-        <linearGradient id="tripb-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="tripb-b" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#c4b5fd" />
-          <stop offset="50%" stopColor="#818cf8" />
+          <stop offset="55%" stopColor="#818cf8" />
           <stop offset="100%" stopColor="#38bdf8" />
         </linearGradient>
-        <linearGradient id="tripb-line" x1="0%" x2="100%">
-          <stop offset="0%" stopColor="#818cf8" stopOpacity="0" />
-          <stop offset="50%" stopColor="#a5b4fc" stopOpacity="0.75" />
-          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+        <linearGradient id="tripb-arrow" x1="0%" x2="100%">
+          <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0" />
+          <stop offset="100%" stopColor="#38bdf8" stopOpacity="1" />
         </linearGradient>
-        <filter id="tripb-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" floodColor="#0f172a" floodOpacity="0.55" />
-        </filter>
       </defs>
 
-      {/* TRIP, tracked wide on top */}
+      {/* "Trip" — thin italic display serif */}
       <text
-        x="46"
-        y="14"
-        textAnchor="middle"
-        fontFamily="var(--font-inter), 'Inter', 'Helvetica Neue', system-ui, sans-serif"
-        fontSize="10"
-        fontWeight={700}
-        letterSpacing="4"
-        fill="#e2e8f0"
+        x="4"
+        y="30"
+        fontFamily="var(--font-playfair), 'Playfair Display', 'Didot', Georgia, serif"
+        fontStyle="italic"
+        fontSize="26"
+        fontWeight={500}
+        fill="#f1f5f9"
+        letterSpacing="0.5"
       >
-        TRIP
+        Trip
       </text>
 
-      {/* Hairline platform */}
+      {/* Flowing connector — a soft arrow suggesting the journey from
+          any starting point to "B" (Plan B, destination B). */}
       <path
-        d="M10 19.5 Q 46 22 82 19.5"
-        stroke="url(#tripb-line)"
-        strokeWidth="1.1"
+        d="M70 22 Q 80 12, 94 22"
+        stroke="url(#tripb-arrow)"
+        strokeWidth="1.8"
         strokeLinecap="round"
         fill="none"
       />
+      <path
+        d="M89 18 L95 22 L89 26"
+        stroke="url(#tripb-arrow)"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
 
-      {/* B — Playfair Display italic 900, gradient, soft shadow */}
+      {/* Big italic serif B, gradient filled */}
       <text
-        x="46"
-        y="49"
-        textAnchor="middle"
-        fontFamily="var(--font-playfair), 'Playfair Display', 'Didot', 'Bodoni 72', Georgia, serif"
+        x="100"
+        y="34"
+        fontFamily="var(--font-playfair), 'Playfair Display', 'Didot', Georgia, serif"
         fontStyle="italic"
-        fontSize="44"
+        fontSize="38"
         fontWeight={900}
-        fill="url(#tripb-grad)"
-        filter="url(#tripb-shadow)"
+        fill="url(#tripb-b)"
+        style={{ filter: 'drop-shadow(0 1px 2px rgba(15,23,42,0.55))' }}
       >
         B
       </text>
