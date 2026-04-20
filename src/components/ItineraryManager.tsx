@@ -394,7 +394,7 @@ function usePlacesSearch(query: string) {
 }
 
 // ── Main component ──────────────────────────────────────────────────
-export default function ItineraryManager({ userId, allRates }: { userId: string; allRates?: Record<string, number> }) {
+export default function ItineraryManager({ userId, allRates, userDisplay }: { userId: string; allRates?: Record<string, number>; userDisplay?: { name: string; picture?: string } }) {
   const { t } = useLang();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
@@ -505,6 +505,10 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
   const [mapDay, setMapDay] = useState(1);
   const [showExplorer, setShowExplorer] = useState(false);
   const [showThemer, setShowThemer] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishAnon, setPublishAnon] = useState(false);
 
   // ── DETAIL VIEW ──────────────────────────────────────────────────
   if (view === 'detail' && selectedTrip) {
@@ -529,13 +533,44 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
           className="relative overflow-hidden rounded-2xl p-5 border border-slate-700/60 shadow-xl shadow-black/30"
           style={tripCardBackgroundStyle(selectedTrip)}
         >
-          <button
-            onClick={() => setShowThemer(v => !v)}
-            className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur border border-white/20 text-white transition-colors"
-            title="배경 바꾸기"
-          >
-            🎨 배경
-          </button>
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (publishing) return;
+                setPublishing(true); setPublishError(null);
+                try {
+                  const res = await fetch('/api/trips/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      trip: selectedTrip,
+                      authorSub: userId,
+                      authorName: userDisplay?.name ?? '여행자',
+                      authorPicture: userDisplay?.picture,
+                      anonymous: publishAnon,
+                    }),
+                  });
+                  if (!res.ok) throw new Error(`서버 응답 ${res.status}`);
+                  const data = await res.json();
+                  const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${data.url}` : data.url;
+                  setPublishedUrl(fullUrl);
+                } catch (e) {
+                  setPublishError((e as Error).message);
+                } finally { setPublishing(false); }
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors font-semibold"
+              title="공개 링크로 공유"
+            >
+              {publishing ? '공유 중…' : '📤 공유'}
+            </button>
+            <button
+              onClick={() => setShowThemer(v => !v)}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur border border-white/20 text-white transition-colors"
+              title="배경 바꾸기"
+            >
+              🎨 배경
+            </button>
+          </div>
           {countdown && (
             <span className={`absolute top-3 left-3 text-[11px] font-bold px-3 py-1 rounded-full text-white shadow-lg shadow-black/30 ${countdown.color}`}>
               {countdown.label}
@@ -586,6 +621,40 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
             onChange={(next) => updateTrip({ ...selectedTrip, ...next })}
             onClose={() => setShowThemer(false)}
           />
+        )}
+
+        {publishError && (
+          <div className="p-3 rounded-xl border border-red-800/60 bg-red-900/20 text-xs text-red-300">
+            공유 실패: {publishError}
+          </div>
+        )}
+        {publishedUrl && (
+          <div className="p-4 rounded-2xl border border-indigo-600/60 bg-gradient-to-br from-indigo-900/40 via-slate-800 to-slate-800 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-indigo-200">📤 공유 링크가 준비됐어요</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">로그인 없이도 볼 수 있는 읽기 전용 요약 페이지예요.</p>
+              </div>
+              <button onClick={() => setPublishedUrl(null)} className="text-slate-500 hover:text-slate-300 text-xs">✕</button>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 border border-slate-700">
+              <input readOnly value={publishedUrl} className="flex-1 bg-transparent px-2 text-xs text-slate-300 focus:outline-none" />
+              <button
+                onClick={() => { navigator.clipboard?.writeText(publishedUrl); }}
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+              >복사</button>
+              <a
+                href={publishedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs"
+              >열기 ↗</a>
+            </div>
+            <label className="flex items-center gap-2 text-[11px] text-slate-400">
+              <input type="checkbox" checked={publishAnon} onChange={e => setPublishAnon(e.target.checked)} className="rounded border-slate-600 bg-slate-700 focus:ring-indigo-500" />
+              🎭 익명으로 공유 (프로필 사진·이름 숨김 — 다시 "공유" 버튼을 눌러 업데이트)
+            </label>
+          </div>
         )}
 
         <PackingListPanel

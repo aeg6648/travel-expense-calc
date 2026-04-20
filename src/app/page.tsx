@@ -686,7 +686,11 @@ export default function Home() {
           {/* Itinerary mode */}
           {mode === 'itinerary' && (
             user ? (
-              <ItineraryManager userId={user.sub} allRates={allRates} />
+              <ItineraryManager
+                userId={user.sub}
+                allRates={allRates}
+                userDisplay={{ name: user.name, picture: user.picture }}
+              />
             ) : (
               <div className="space-y-10">
                 <div className="flex flex-col items-center justify-center py-12 gap-5">
