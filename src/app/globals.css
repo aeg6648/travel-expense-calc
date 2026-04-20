@@ -51,28 +51,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   overflow: hidden;
 }
 
-@keyframes fly-plane {
-  0%   { transform: translateX(-100px) translateY(20px) rotate(-5deg); opacity: 0; }
-  5%   { opacity: 0.7; }
-  40%  { transform: translateX(35vw) translateY(-10px) rotate(3deg); opacity: 0.7; }
-  70%  { transform: translateX(65vw) translateY(5px) rotate(-2deg); opacity: 0.6; }
-  95%  { opacity: 0.3; }
-  100% { transform: translateX(calc(100vw + 100px)) translateY(-20px) rotate(5deg); opacity: 0; }
+/* 로고 비행기 takeoff → land 애니메이션 */
+@keyframes plane-logo {
+  /* 0~10%: 대기 */
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+  10%  { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+  /* 10~28%: 이륙 — 우상단으로 날아가며 사라짐 */
+  22%  { transform: translate(14px,-14px) rotate(30deg) scale(0.5); opacity: 0; }
+  23%  { transform: translate(-12px, 12px) rotate(30deg) scale(0.4); opacity: 0; }
+  /* 23~45%: 화면 밖 (숨김) */
+  45%  { transform: translate(-12px, 12px) rotate(30deg) scale(0.4); opacity: 0; }
+  /* 45~62%: 착륙 — 좌하단에서 날아와 제자리로 */
+  58%  { transform: translate(0,0) rotate(0deg) scale(1.15); opacity: 1; }
+  /* 62~100%: 착지 안정 → 대기 */
+  65%  { transform: translate(0,0) rotate(-4deg) scale(0.95); opacity: 1; }
+  72%  { transform: translate(0,0) rotate(2deg) scale(1); opacity: 1; }
+  100% { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
 }
 
-@keyframes fly-plane-small {
-  0%   { transform: translateX(-60px) translateY(0px) rotate(-3deg); opacity: 0; }
-  8%   { opacity: 0.45; }
-  50%  { transform: translateX(50vw) translateY(-15px) rotate(2deg); opacity: 0.45; }
-  92%  { opacity: 0.2; }
-  100% { transform: translateX(calc(100vw + 60px)) translateY(8px) rotate(-3deg); opacity: 0; }
-}
-
-.plane-fly {
-  animation: fly-plane 12s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.plane-fly-small {
-  animation: fly-plane-small 18s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  animation-delay: 5s;
+.plane-logo-animate {
+  animation: plane-logo 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: 1.5s;
+  display: inline-block;
 }
