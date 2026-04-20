@@ -20,6 +20,8 @@ export default function GoogleSignInButton({
   const divRef = useRef<HTMLDivElement>(null);
   const done = useRef(false);
   const [ready, setReady] = useState(false);
+  // Google minimum is 200px; clamp incoming width up to that
+  const gWidth = Math.max(width ?? (size === 'large' ? 220 : 200), 200);
 
   useEffect(() => {
     if (done.current) return;
@@ -33,7 +35,7 @@ export default function GoogleSignInButton({
         text,
         shape,
         logo_alignment: 'left',
-        ...(width ? { width } : {}),
+        width: gWidth,
       });
       done.current = true;
       setReady(true);
@@ -46,14 +48,17 @@ export default function GoogleSignInButton({
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const placeholderH = size === 'large' ? 'h-10' : 'h-8';
-  const placeholderW = width ? `w-[${width}px]` : size === 'large' ? 'w-48' : 'w-32';
+  const placeholderH = size === 'large' ? 40 : 36;
+  // Google minimum button width is 200px
+  const effectiveWidth = Math.max(width ?? (size === 'large' ? 220 : 200), 200);
 
   return (
     <div className="relative">
-      {/* 로딩 중 placeholder — Google 버튼과 크기 일치 */}
       {!ready && (
-        <div className={`${placeholderH} ${placeholderW} rounded bg-slate-700/60 animate-pulse`} />
+        <div
+          className="rounded bg-slate-700/60 animate-pulse"
+          style={{ height: placeholderH, width: effectiveWidth }}
+        />
       )}
       <div ref={divRef} className={ready ? '' : 'absolute opacity-0 pointer-events-none'} />
     </div>

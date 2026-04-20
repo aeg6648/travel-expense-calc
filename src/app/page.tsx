@@ -226,7 +226,7 @@ export default function Home() {
                 )}
               </div>
             ) : (
-              <GoogleSignInButton size="medium" text="signin_with" theme="filled_black" width={130} />
+              <GoogleSignInButton size="medium" text="signin_with" theme="filled_black" />
             )}
           </div>
         </div>
@@ -283,7 +283,7 @@ export default function Home() {
           {/* Country mode — no selection */}
           {mode === 'country' && !selectedCode && (
             <div className="space-y-6">
-              <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
+              <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} allRates={allRates} />
             </div>
           )}
 
@@ -424,7 +424,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
+                <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} allRates={allRates} />
                 <AdBanner slot="1111111111" format="rectangle" />
               </div>
 

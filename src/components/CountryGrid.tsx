@@ -10,6 +10,7 @@ interface Props {
   selectedCode: string | null;
   onSelect: (code: string) => void;
   style: 'budget' | 'standard' | 'luxury';
+  allRates?: Record<string, number>;
 }
 
 const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallbackTo: string }> = {
@@ -29,7 +30,7 @@ const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallba
   IT: { url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#14532d', fallbackTo: '#15803d' },
 };
 
-export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
+export default function CountryGrid({ selectedCode, onSelect, style, allRates }: Props) {
   const { t } = useLang();
   const [region, setRegion] = useState<string>('전체');
   const [search, setSearch] = useState('');
@@ -85,6 +86,7 @@ export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
               isSelected={isSelected}
               avgCost={cost.avg}
               onSelect={() => onSelect(country.code)}
+              allRates={allRates}
             />
           );
         })}
@@ -104,13 +106,22 @@ function CountryCard({
   isSelected,
   avgCost,
   onSelect,
+  allRates,
 }: {
   country: Country;
   isSelected: boolean;
   avgCost: number;
   onSelect: () => void;
+  allRates?: Record<string, number>;
 }) {
   const { t, lang } = useLang();
+
+  const costLabel = (() => {
+    if (lang === 'ko') return `평균 ${formatKRWShort(avgCost)}원~`;
+    const krwPerUsd = allRates?.['KRW'] ?? 1450;
+    const usd = Math.round(avgCost / krwPerUsd);
+    return `From $${usd.toLocaleString()}`;
+  })();
   const photo = COUNTRY_PHOTOS[country.code];
   const fallbackStyle = photo
     ? { background: `linear-gradient(135deg, ${photo.fallbackFrom}, ${photo.fallbackTo})` }
@@ -160,7 +171,7 @@ function CountryCard({
       {/* Content */}
       <div className="p-3 bg-slate-800 flex-1">
         <p className="text-xs font-semibold text-indigo-400 mb-2">
-          {t.avgCostFrom(formatKRWShort(avgCost))}
+          {costLabel}
         </p>
         <div className="flex flex-wrap gap-1">
           {country.tags.slice(0, 2).map(tag => (
