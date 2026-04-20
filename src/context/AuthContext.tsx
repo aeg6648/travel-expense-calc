@@ -99,6 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         callback: handleCredential,
         auto_select: false,
         cancel_on_tap_outside: false,
+        // iOS Safari / mobile Chrome fixes:
+        //   itp_support lets GIS work under Intelligent Tracking Prevention
+        //   use_fedcm_for_prompt/button enables the native FedCM sign-in dialog
+        //   which bypasses a bunch of third-party-cookie issues on mobile.
+        itp_support: true,
+        use_fedcm_for_prompt: true,
       });
     };
 
