@@ -328,7 +328,9 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
-// Recommend a transit mode + rough duration between two activities using straight-line distance.
+// Straight-line heuristic used only as a placeholder while the real
+// Google Directions call is in flight (or when it fails — offline /
+// API key missing).
 function suggestTransport(from: Activity, to: Activity): { icon: string; mode: string; minutes: number; km: number } | null {
   if (from.lat === undefined || from.lng === undefined || to.lat === undefined || to.lng === undefined) return null;
   const km = haversineKm({ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng });
@@ -338,6 +340,132 @@ function suggestTransport(from: Activity, to: Activity): { icon: string; mode: s
   if (km < 40)  return { icon: '🚕', mode: '택시·승차공유', minutes: Math.round(8 + km * 1.8), km };
   if (km < 400) return { icon: '🚄', mode: '고속철·기차', minutes: Math.round(30 + km * 0.4), km };
   return { icon: '✈️', mode: '국내선 항공', minutes: Math.round(60 + km * 0.1), km };
+}
+
+// Helper: encode an Activity for the Directions API. Prefers place_id
+// (exact match) over lat/lng which is noisier.
+function activityToDirectionsParam(a: Activity): string | null {
+  if (a.locationPlaceId) return `place_id:${a.locationPlaceId}`;
+  if (a.lat !== undefined && a.lng !== undefined) return `${a.lat},${a.lng}`;
+  return null;
+}
+
+// Pick a sensible default Directions mode based on the straight-line
+// distance. Walking for short hops, transit for city-scale, driving for
+// longer. User can override via the MapView mode switcher.
+function defaultModeForDistance(km: number): 'walking' | 'transit' | 'driving' {
+  if (km < 1.2) return 'walking';
+  if (km < 40)  return 'transit';
+  return 'driving';
+}
+
+interface GoogleDirectionsResult {
+  durationText?: string;
+  durationSeconds?: number;
+  distanceText?: string;
+  distanceMeters?: number;
+  fareText?: string;
+  transitModes?: string[];
+  mode: 'transit' | 'driving' | 'walking' | 'bicycling';
+}
+
+// Module-level cache so a day-view re-render doesn't refetch each pair.
+const _dirCache = new Map<string, GoogleDirectionsResult | 'failed'>();
+
+// A single inter-activity chip. Renders the straight-line heuristic as
+// a placeholder, then replaces it with real Google Directions data
+// (transit preferred; falls back to driving/walking by distance).
+function TransportHint({ from, to }: { from: Activity; to: Activity }) {
+  const heuristic = suggestTransport(from, to);
+  const fromParam = activityToDirectionsParam(from);
+  const toParam = activityToDirectionsParam(to);
+  const km = heuristic?.km ?? 0;
+  const preferredMode = defaultModeForDistance(km);
+  const cacheKey = `${fromParam}|${toParam}|${preferredMode}`;
+  const initialCached = _dirCache.get(cacheKey);
+  const [real, setReal] = useState<GoogleDirectionsResult | null>(
+    initialCached && initialCached !== 'failed' ? initialCached : null,
+  );
+
+  useEffect(() => {
+    if (!fromParam || !toParam) return;
+    if (_dirCache.get(cacheKey)) return; // already tried
+    const params = new URLSearchParams({ origin: fromParam, destination: toParam, mode: preferredMode });
+    fetch(`/api/directions?${params.toString()}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && !data.error && data.durationText) {
+          const hit: GoogleDirectionsResult = data as GoogleDirectionsResult;
+          _dirCache.set(cacheKey, hit);
+          setReal(hit);
+        } else {
+          _dirCache.set(cacheKey, 'failed');
+        }
+      })
+      .catch(() => _dirCache.set(cacheKey, 'failed'));
+  }, [cacheKey, fromParam, toParam, preferredMode]);
+
+  if (!heuristic) return null;
+  const origin = fromParam ?? '';
+  const dest = toParam ?? '';
+  const gmUrl = origin && dest
+    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&travelmode=${real?.mode ?? preferredMode}`
+    : null;
+
+  const modeLabel = (m: string, transit?: string[]) => {
+    if (m === 'walking') return '🚶 도보';
+    if (m === 'driving') return '🚕 택시·차';
+    if (m === 'bicycling') return '🚲 자전거';
+    if (m === 'transit') {
+      if (transit && transit.length) {
+        const unique = Array.from(new Set(transit.map(v =>
+          v.includes('subway') || v.includes('Subway') || v.includes('지하철') ? '🚇 지하철'
+          : v.includes('bus') || v.includes('Bus') || v.includes('버스') ? '🚌 버스'
+          : v.includes('train') || v.includes('Train') || v.includes('기차') || v.includes('Rail') ? '🚆 기차'
+          : v.includes('tram') || v.includes('Tram') ? '🚊 트램'
+          : '🚇 대중교통'
+        )));
+        return unique.join(' + ');
+      }
+      return '🚇 대중교통';
+    }
+    return '🚇 이동';
+  };
+
+  const shown = real
+    ? { label: modeLabel(real.mode, real.transitModes), duration: real.durationText ?? `${heuristic.minutes}분`, distance: real.distanceText ?? `${heuristic.km.toFixed(1)}km`, fare: real.fareText }
+    : { label: `${heuristic.icon} ${heuristic.mode}`, duration: `~${heuristic.minutes}분`, distance: heuristic.km < 1 ? `${Math.round(heuristic.km * 1000)}m` : `${heuristic.km.toFixed(1)}km` as string | undefined, fare: undefined as string | undefined };
+
+  return (
+    <div className="flex items-center gap-2 pl-5 py-0.5 text-[10px] text-slate-500">
+      <span className="w-px h-3 bg-slate-700" />
+      {gmUrl ? (
+        <a
+          href={gmUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 hover:text-indigo-300 transition-colors"
+          title="Google 지도에서 길찾기"
+        >
+          <span>{shown.label}</span>
+          <span className="text-slate-600">·</span>
+          <span>{shown.duration}</span>
+          <span className="text-slate-600">·</span>
+          <span>{shown.distance}</span>
+          {shown.fare && <><span className="text-slate-600">·</span><span className="text-emerald-400">{shown.fare}</span></>}
+          {real ? <span className="text-[9px] text-indigo-400/70 ml-0.5">실시간</span> : <span className="text-[9px] text-slate-600 ml-0.5">추정</span>}
+        </a>
+      ) : (
+        <>
+          <span>{shown.label}</span>
+          <span className="text-slate-600">·</span>
+          <span>{shown.duration}</span>
+          <span className="text-slate-600">·</span>
+          <span>{shown.distance}</span>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ── Live place recommendations hook ────────────────────────────────
@@ -771,20 +899,9 @@ export default function ItineraryManager({ userId, allRates, userDisplay }: { us
                 const actColor = TYPE_COLORS[act.type];
                 const actIcon = TYPE_ICONS[act.type];
                 const prev = idx > 0 ? dayActs[idx - 1] : null;
-                const transit = prev ? suggestTransport(prev, act) : null;
                 return (
                 <div key={act.id}>
-                  {transit && (
-                    <div className="flex items-center gap-2 pl-5 py-0.5 text-[10px] text-slate-500">
-                      <span className="w-px h-3 bg-slate-700" />
-                      <span>{transit.icon}</span>
-                      <span className="text-slate-400">{transit.mode}</span>
-                      <span className="text-slate-600">·</span>
-                      <span>~{transit.minutes}분</span>
-                      <span className="text-slate-600">·</span>
-                      <span>{transit.km < 1 ? `${Math.round(transit.km * 1000)}m` : `${transit.km.toFixed(1)}km`}</span>
-                    </div>
-                  )}
+                  {prev && <TransportHint from={prev} to={act} />}
                   <div
                     draggable
                     onDragStart={(e) => {
@@ -1658,6 +1775,7 @@ function MapView({
   startDate: string;
 }) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+  const [mapMode, setMapMode] = useState<'transit' | 'driving' | 'walking' | 'bicycling'>('transit');
 
   const isAll = selectedDay === 0;
   // Match the day-view sort exactly so dragging a card updates the map
@@ -1692,7 +1810,7 @@ function MapView({
     const origin = enc(clipped[0]);
     const dest = enc(clipped[clipped.length - 1]);
     const waypoints = clipped.slice(1, -1).map(enc).join('|');
-    let url = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${origin}&destination=${dest}&language=ko`;
+    let url = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${origin}&destination=${dest}&mode=${mapMode}&language=ko`;
     if (waypoints) url += `&waypoints=${waypoints}`;
     return url;
   })();
@@ -1726,6 +1844,21 @@ function MapView({
             >{d}</button>
           );
         })}
+        <span className="flex-1" />
+        <div className="hidden sm:flex items-center gap-1 shrink-0 text-[10px] border border-slate-700/60 rounded-lg overflow-hidden">
+          {([
+            { id: 'transit', label: '🚇 대중' },
+            { id: 'walking', label: '🚶 도보' },
+            { id: 'driving', label: '🚕 차' },
+            { id: 'bicycling', label: '🚲 자전거' },
+          ] as const).map(m => (
+            <button
+              key={m.id}
+              onClick={() => setMapMode(m.id)}
+              className={`px-2 py-1 transition-colors ${mapMode === m.id ? 'bg-emerald-700/40 text-emerald-200' : 'text-slate-400 hover:bg-slate-700'}`}
+            >{m.label}</button>
+          ))}
+        </div>
       </div>
 
       {embedUrl ? (
