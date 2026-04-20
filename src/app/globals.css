@@ -51,26 +51,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   overflow: hidden;
 }
 
-/* 로고 비행기 takeoff → land 애니메이션 */
-@keyframes plane-logo {
-  /* 0~10%: 대기 */
-  0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
-  10%  { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
-  /* 10~28%: 이륙 — 우상단으로 날아가며 사라짐 */
-  22%  { transform: translate(14px,-14px) rotate(30deg) scale(0.5); opacity: 0; }
-  23%  { transform: translate(-12px, 12px) rotate(30deg) scale(0.4); opacity: 0; }
-  /* 23~45%: 화면 밖 (숨김) */
-  45%  { transform: translate(-12px, 12px) rotate(30deg) scale(0.4); opacity: 0; }
-  /* 45~62%: 착륙 — 좌하단에서 날아와 제자리로 */
-  58%  { transform: translate(0,0) rotate(0deg) scale(1.15); opacity: 1; }
-  /* 62~100%: 착지 안정 → 대기 */
-  65%  { transform: translate(0,0) rotate(-4deg) scale(0.95); opacity: 1; }
-  72%  { transform: translate(0,0) rotate(2deg) scale(1); opacity: 1; }
-  100% { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+/* 로고 비행기: 위로 사라졌다 아래서 올라오는 애니메이션 — 클릭 시 1회 재생 */
+@keyframes plane-fly-out-in {
+  0%   { transform: translateY(0);    opacity: 1; }
+  30%  { transform: translateY(-20px); opacity: 0; }
+  31%  { transform: translateY(20px);  opacity: 0; }
+  70%  { transform: translateY(20px);  opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
 }
 
-.plane-logo-animate {
-  animation: plane-logo 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  animation-delay: 1.5s;
+.plane-logo-clicked {
+  animation: plane-fly-out-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   display: inline-block;
 }

@@ -26,6 +26,28 @@ type Mode = 'budget' | 'country' | 'itinerary';
 export default function Home() {
   const { lang, setLang, t } = useLang();
   const { user, signOut } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [planeAnim, setPlaneAnim] = useState(false);
+
+  const handleLogoClick = () => {
+    handleModeChange('budget');
+    setPlaneAnim(false);
+    // 다음 프레임에 클래스 다시 추가해 애니메이션 재실행
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setPlaneAnim(true));
+    });
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('budget');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -96,11 +118,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <Link
             href="/"
-            onClick={() => handleModeChange('budget')}
+            onClick={handleLogoClick}
             className="flex items-center gap-2.5 group"
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 transition-all overflow-hidden">
-              <span className="text-base plane-logo-animate">✈️</span>
+              <span
+                className={`text-base inline-block ${planeAnim ? 'plane-logo-clicked' : ''}`}
+                onAnimationEnd={() => setPlaneAnim(false)}
+              >✈️</span>
             </div>
             <span className="text-sm font-bold text-slate-100 hidden sm:block">{t.siteTitle}</span>
           </Link>
@@ -130,19 +155,49 @@ export default function Home() {
               ))}
             </div>
             {user ? (
-              <button
-                onClick={signOut}
-                title={user.name}
-                className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-red-500/50 transition-all group"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={user.picture} alt={user.name} className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
-                <span className="text-xs text-slate-300 hidden sm:block max-w-[80px] truncate group-hover:text-red-400">{user.name}</span>
-              </button>
-            ) : (
-              <div className="scale-[0.85] origin-right">
-                <GoogleSignInButton size="medium" text="signin_with" theme="filled_black" />
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setShowUserMenu(v => !v)}
+                  className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-indigo-500/50 transition-all"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={user.picture} alt={user.name} className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
+                  <span className="text-xs text-slate-300 hidden sm:block max-w-[80px] truncate">{user.name.split(' ')[0]}</span>
+                  <svg className={`w-3 h-3 text-slate-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+                    {/* 유저 정보 */}
+                    <div className="px-3 py-3 border-b border-slate-700">
+                      <p className="text-xs font-semibold text-slate-100 truncate">{user.name}</p>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{user.email}</p>
+                    </div>
+                    {/* 내 여행 일정 */}
+                    <button
+                      onClick={() => { setShowUserMenu(false); handleModeChange('itinerary'); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors text-left"
+                    >
+                      <span className="text-base">📅</span>
+                      <span>{t.modeItinerary}</span>
+                    </button>
+                    {/* 로그아웃 */}
+                    <button
+                      onClick={() => { setShowUserMenu(false); signOut(); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-colors text-left border-t border-slate-700/60"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                      </svg>
+                      <span>로그아웃</span>
+                    </button>
+                  </div>
+                )}
               </div>
+            ) : (
+              <GoogleSignInButton size="medium" text="signin_with" theme="filled_black" width={130} />
             )}
           </div>
         </div>
