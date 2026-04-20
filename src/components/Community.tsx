@@ -11,6 +11,7 @@ export interface CommunityComment {
   authorSub: string;
   authorName: string;      // display name (real or nickname)
   authorPicture?: string;
+  authorEmail?: string;    // only revealed in UI to admins
   anonymous?: boolean;     // true when the user chose to post under a nickname
   body: string;
   createdAt: string;
@@ -21,6 +22,7 @@ export interface CommunityPost {
   authorSub: string;
   authorName: string;      // display name (real or nickname)
   authorPicture?: string;
+  authorEmail?: string;    // only revealed in UI to admins
   anonymous?: boolean;     // true when posted under a nickname
   countryCode?: string;
   title: string;
@@ -293,6 +295,7 @@ export default function Community({ initialAuthorSub }: Props) {
       authorSub: user.sub,
       authorName: displayName,
       authorPicture: anon ? undefined : user.picture,
+      authorEmail: user.email,
       anonymous: anon,
       body: body.trim(),
       createdAt: new Date().toISOString(),
@@ -318,7 +321,7 @@ export default function Community({ initialAuthorSub }: Props) {
     if (!user) return null;
     return (
       <PostForm
-        user={{ sub: user.sub, name: user.name, picture: user.picture }}
+        user={{ sub: user.sub, name: user.name, picture: user.picture, email: user.email }}
         onSave={(p) => { savePost(p); setView('list'); }}
         onCancel={() => setView('list')}
       />
@@ -406,6 +409,12 @@ export default function Community({ initialAuthorSub }: Props) {
                     </div>
                   )}
                   <span className="text-xs font-medium text-slate-300">{p.authorName}</span>
+                  {p.anonymous && <span className="text-[9px] px-1.5 py-0 rounded bg-slate-700/70 text-slate-500">익명</span>}
+                  {isAdmin && p.authorEmail && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/40 border border-indigo-700/50 text-indigo-300" title="관리자 전용">
+                      🛡️ {p.authorEmail}
+                    </span>
+                  )}
                   <span className="text-[10px] text-slate-500">{formatRelative(p.createdAt)}</span>
                   {country && (
                     <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-400 border border-slate-700">
@@ -475,7 +484,15 @@ function PostDetail({
             </div>
           )}
           <div>
-            <p className="text-sm font-medium text-slate-200">{post.authorName}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-sm font-medium text-slate-200">{post.authorName}</p>
+              {post.anonymous && <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700/70 text-slate-500">익명</span>}
+              {isAdmin && post.authorEmail && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/40 border border-indigo-700/50 text-indigo-300" title="관리자 전용">
+                  🛡️ {post.authorEmail}
+                </span>
+              )}
+            </div>
             <p className="text-[10px] text-slate-500">{formatRelative(post.createdAt)}</p>
           </div>
           {country && (
@@ -563,8 +580,14 @@ function PostDetail({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-xs font-medium text-slate-200">{c.authorName}</span>
+                    {c.anonymous && <span className="text-[9px] px-1 py-0 rounded bg-slate-700/70 text-slate-500">익명</span>}
+                    {isAdmin && c.authorEmail && (
+                      <span className="text-[9px] px-1.5 py-0 rounded bg-indigo-900/40 border border-indigo-700/50 text-indigo-300" title="관리자 전용">
+                        🛡️ {c.authorEmail}
+                      </span>
+                    )}
                     <span className="text-[10px] text-slate-500">{formatRelative(c.createdAt)}</span>
                   </div>
                   <p className="text-xs text-slate-300 mt-0.5 whitespace-pre-wrap">{c.body}</p>
@@ -583,7 +606,7 @@ const NICK_KEY = 'tripb_community_nickname_v1';
 function PostForm({
   user, onSave, onCancel,
 }: {
-  user: { sub: string; name: string; picture?: string };
+  user: { sub: string; name: string; picture?: string; email?: string };
   onSave: (p: CommunityPost) => void;
   onCancel: () => void;
 }) {
@@ -618,6 +641,7 @@ function PostForm({
       authorSub: user.sub,
       authorName: finalName,
       authorPicture: anonymous ? undefined : user.picture,
+      authorEmail: user.email,
       anonymous,
       countryCode: countryCode || undefined,
       title: title.trim(),

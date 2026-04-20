@@ -289,12 +289,40 @@ export default function Home() {
           </div>
 
           <div className="relative max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-100 mb-2 tracking-tight">
-              {t.heroTitle}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-medium text-white/90 mb-4 uppercase tracking-[0.2em]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Plan B for your trip
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05] mb-4 text-white">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-sky-200">
+                {t.heroTitle}
+              </span>
             </h1>
-            <p className="text-slate-400 text-sm mb-8">
+            <p className="text-white/75 text-base sm:text-lg mb-8 max-w-xl mx-auto leading-relaxed">
               {t.heroSubtitle}
             </p>
+
+            {/* ── Vibes — experience-first mood pills ── */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-none justify-start sm:justify-center">
+              {[
+                { emoji: '🍜', label: '로컬 미식' },
+                { emoji: '🎨', label: '예술·갤러리' },
+                { emoji: '🏄', label: '액티비티' },
+                { emoji: '📸', label: '포토제닉' },
+                { emoji: '🌿', label: '힐링' },
+                { emoji: '🌃', label: '야경·나이트' },
+                { emoji: '🛍️', label: '쇼핑 트립' },
+                { emoji: '⛺', label: '로드트립' },
+              ].map(v => (
+                <span
+                  key={v.label}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur border border-white/15 text-xs font-medium text-white/90 hover:bg-white/15 hover:border-white/30 transition-all cursor-default"
+                >
+                  <span>{v.emoji}</span>
+                  <span>{v.label}</span>
+                </span>
+              ))}
+            </div>
 
             {/* ── Itinerary (hero) tab ── */}
             <button

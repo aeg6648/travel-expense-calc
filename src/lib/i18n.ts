@@ -5,8 +5,8 @@ export type T = typeof translations.ko;
 const translations = {
   ko: {
     siteTitle: '트립비',
-    heroTitle: '어디로 떠나고 싶으세요?',
-    heroSubtitle: '예산·국가·일정을 한번에 계획하세요',
+    heroTitle: '어디로 떠나볼까?',
+    heroSubtitle: '일정·경험·동선까지 당신만의 트립을 만들어드릴게요',
 
     modeBudget: '예산으로 찾기',
     modeCountry: '국가로 찾기',
