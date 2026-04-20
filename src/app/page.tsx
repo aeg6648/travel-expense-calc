@@ -30,6 +30,14 @@ export default function Home() {
   const [imgError, setImgError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [planeAnim, setPlaneAnim] = useState(false);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const announceRef = useRef<HTMLDivElement>(null);
+  const [announcementsSeen, setAnnouncementsSeen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setAnnouncementsSeen(localStorage.getItem('tripb_announcements_seen_v1') === '1');
+  }, []);
 
   const handleLogoClick = () => {
     handleModeChange('budget');
@@ -44,6 +52,9 @@ export default function Home() {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false);
+      }
+      if (announceRef.current && !announceRef.current.contains(e.target as Node)) {
+        setShowAnnouncements(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -134,6 +145,55 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-2">
+            {/* 📢 Announcements */}
+            <div className="relative" ref={announceRef}>
+              <button
+                onClick={() => {
+                  setShowAnnouncements(v => !v);
+                  if (!announcementsSeen) {
+                    localStorage.setItem('tripb_announcements_seen_v1', '1');
+                    setAnnouncementsSeen(true);
+                  }
+                }}
+                className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-indigo-500/50 text-slate-300 hover:text-slate-100 transition-all"
+                title="공지사항"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                {!announcementsSeen && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-pink-500 animate-pulse shadow-md shadow-pink-500/50" />
+                )}
+              </button>
+
+              {showAnnouncements && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-slate-800/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-200">📢 공지사항</span>
+                    <span className="text-[10px] text-slate-500">1건</span>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/30 to-pink-500/30 border border-amber-500/40 text-amber-200 font-bold">
+                        NEW
+                      </span>
+                      <span className="text-[10px] text-slate-500">2026-04-20</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-100 leading-snug">
+                      TRIP-B, 당신의 플랜 B가 되어드릴게요
+                    </h3>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      플랜 A를 대비해서 플랜 B를 세운다고 하죠!
+                      <br />계획이 틀어지고 환율이 변하더라도 언제든지 가장 재밌고 알차고
+                      가심비 넘치는 여행 계획을 같이 세워주는{' '}
+                      <span className="font-semibold text-indigo-300">TRIP-B</span>는
+                      언제나 여러분의 여행을 책임질 거예요. ✈️
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {authLoading ? (
               <div className="w-[90px] h-7 rounded-xl bg-slate-800/80 border border-slate-700/60 animate-pulse" />
             ) : user ? (
