@@ -52,7 +52,7 @@ interface Props {
 }
 
 export default function BudgetFinder({ allRates, onSelectCountry, originCode, onOriginChange }: Props) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [currency, setCurrency] = useState('KRW');
   // KRW는 만원 단위로 입력 (150 → 1,500,000원), 그 외는 원래 단위
   const [budgetInput, setBudgetInput] = useState('150');
@@ -109,15 +109,8 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
   const originInfo = ORIGIN_COUNTRIES.find(o => o.code === originCode);
   const originName = t.originCountryNames[originCode as keyof typeof t.originCountryNames] ?? originCode;
 
-  // Display KRW amount in a locale-appropriate form.
-  const formatKRWAmount = (krw: number) => {
-    if (lang === 'ko') return `${formatKRWShort(krw)}원`;
-    if (krw >= 1_000_000) return `₩${(krw / 1_000_000).toFixed(1)}M`;
-    if (krw >= 1_000) return `₩${Math.round(krw / 1_000).toLocaleString()}K`;
-    return `₩${krw.toLocaleString()}`;
-  };
+  const formatKRWAmount = (krw: number) => `${formatKRWShort(krw)}원`;
 
-  // Format any KRW total into the currently selected currency for display.
   const formatInCurrency = (krw: number) => {
     if (currency === 'KRW') return formatKRWAmount(krw);
     const krwPerUsd = allRates['KRW'] ?? 1450;
@@ -125,9 +118,6 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
     const converted = (krw / krwPerUsd) * currencyPerUsd;
     return `${currencySymbol}${Math.round(converted).toLocaleString()}`;
   };
-
-  // Budget unit label shown beside the input when currency === KRW.
-  const krwInputUnit = lang === 'ko' ? '만원' : '×10K ₩';
 
   return (
     <div className="space-y-5">
@@ -157,7 +147,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
               />
               {currency === 'KRW' && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400 pointer-events-none">
-                  {krwInputUnit}
+                  만원
                 </span>
               )}
               {currency !== 'KRW' && budgetKRW > 0 && (
@@ -175,7 +165,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
             ? [50, 100, 150, 200, 300, 500].map(v => (
                 <button key={v} type="button" onClick={() => setBudgetInput(String(v))}
                   className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budgetInput === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:text-slate-200'}`}>
-                  {lang === 'ko' ? `${v}만원` : `₩${(v * 10000).toLocaleString()}`}
+                  {v}만원
                 </button>
               ))
             : currency === 'JPY'
@@ -290,7 +280,7 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
             {t.resultsTitle} <span className="text-indigo-400 ml-1">{withinBudget.length}{t.destinations}</span>
           </h2>
           <span className="text-xs text-slate-400">
-            {duration}{t.nightUnit} · {t.styleLabels[style]} · {currency === 'KRW' ? (lang === 'ko' ? `${Number(budgetInput).toLocaleString()}만원` : formatKRWAmount(budgetKRW)) : `${currencySymbol}${Number(budgetInput).toLocaleString()}`}
+            {duration}{t.nightUnit} · {t.styleLabels[style]} · {currency === 'KRW' ? `${Number(budgetInput).toLocaleString()}만원` : `${currencySymbol}${Number(budgetInput).toLocaleString()}`}
           </span>
         </div>
 
@@ -318,11 +308,11 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                     <div className="flex items-center gap-2">
                       <img
                         src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
-                        alt={lang === 'ko' ? country.nameKR : country.name}
+                        alt={country.nameKR}
                         className="w-8 h-5 object-cover rounded shadow-md flex-shrink-0"
                       />
                       <div>
-                        <p className="text-sm font-semibold text-slate-100 group-hover:text-emerald-300 transition-colors">{lang === 'ko' ? country.nameKR : country.name}</p>
+                        <p className="text-sm font-semibold text-slate-100 group-hover:text-emerald-300 transition-colors">{country.nameKR}</p>
                         <p className="text-[11px] text-slate-400">{t.regionLabels[country.region as keyof typeof t.regionLabels] ?? country.region} · {duration}{t.nightUnit}</p>
                       </div>
                     </div>
@@ -398,10 +388,10 @@ export default function BudgetFinder({ allRates, onSelectCountry, originCode, on
                   className="p-3 rounded-2xl border border-slate-700/40 bg-slate-800/60 hover:bg-slate-700/60 transition-all text-left opacity-60 hover:opacity-100"
                 >
                   <div className="flex items-center gap-2">
-                    <img src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`} alt={lang === 'ko' ? country.nameKR : country.name} className="w-7 h-5 object-cover rounded shadow-sm shrink-0" />
+                    <img src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`} alt={country.nameKR} className="w-7 h-5 object-cover rounded shadow-sm shrink-0" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-slate-300">{lang === 'ko' ? country.nameKR : country.name}</p>
+                        <p className="text-sm font-medium text-slate-300">{country.nameKR}</p>
                         <span className="text-xs text-red-400">+{budgetPct - 100}% {t.overBudgetSuffix}</span>
                       </div>
                       <p className="text-xs text-slate-500">

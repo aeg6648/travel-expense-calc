@@ -9,7 +9,6 @@ import { STYLE_LABELS } from '@/lib/utils';
 import { useLang } from '@/context/LangContext';
 import { useAuth } from '@/context/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
-import { SUPPORTED_LANGS } from '@/lib/i18n';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -24,7 +23,7 @@ import AdBanner from '@/components/AdBanner';
 type Mode = 'budget' | 'country' | 'itinerary';
 
 export default function Home() {
-  const { lang, setLang, t } = useLang();
+  const { t } = useLang();
   const { user, loading: authLoading, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -141,22 +140,6 @@ export default function Home() {
               <span className="text-slate-100 font-semibold text-[11px]">
                 {rateLoading ? '…' : headerRate.toLocaleString()}
               </span>
-            </div>
-            <div className="flex items-center gap-0.5 rounded-xl bg-slate-800/80 border border-slate-700/60 p-0.5">
-              {SUPPORTED_LANGS.map(({ code, flag }) => (
-                <button
-                  key={code}
-                  onClick={() => setLang(code)}
-                  title={code.toUpperCase()}
-                  className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-                    lang === code
-                      ? 'bg-indigo-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {flag}
-                </button>
-              ))}
             </div>
             {authLoading ? (
               <div className="w-[90px] h-7 rounded-xl bg-slate-800/80 border border-slate-700/60 animate-pulse" />
@@ -283,7 +266,7 @@ export default function Home() {
           {/* Country mode — no selection */}
           {mode === 'country' && !selectedCode && (
             <div className="space-y-6">
-              <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} allRates={allRates} />
+              <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
             </div>
           )}
 
@@ -424,7 +407,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} allRates={allRates} />
+                <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
                 <AdBanner slot="1111111111" format="rectangle" />
               </div>
 
@@ -494,8 +477,8 @@ export default function Home() {
           )}
         </div>
 
-        {/* SEO text - bottom (ko only) */}
-        {mode === 'budget' && !selectedCode && lang === 'ko' && (
+        {/* SEO text - bottom */}
+        {mode === 'budget' && !selectedCode && (
           <div className="max-w-5xl mx-auto px-4 pb-12">
             <SeoSection />
           </div>

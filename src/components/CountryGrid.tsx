@@ -10,7 +10,6 @@ interface Props {
   selectedCode: string | null;
   onSelect: (code: string) => void;
   style: 'budget' | 'standard' | 'luxury';
-  allRates?: Record<string, number>;
 }
 
 const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallbackTo: string }> = {
@@ -30,7 +29,7 @@ const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallba
   IT: { url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#14532d', fallbackTo: '#15803d' },
 };
 
-export default function CountryGrid({ selectedCode, onSelect, style, allRates }: Props) {
+export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
   const { t } = useLang();
   const [region, setRegion] = useState<string>('전체');
   const [search, setSearch] = useState('');
@@ -86,7 +85,6 @@ export default function CountryGrid({ selectedCode, onSelect, style, allRates }:
               isSelected={isSelected}
               avgCost={cost.avg}
               onSelect={() => onSelect(country.code)}
-              allRates={allRates}
             />
           );
         })}
@@ -106,22 +104,15 @@ function CountryCard({
   isSelected,
   avgCost,
   onSelect,
-  allRates,
 }: {
   country: Country;
   isSelected: boolean;
   avgCost: number;
   onSelect: () => void;
-  allRates?: Record<string, number>;
 }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
 
-  const costLabel = (() => {
-    if (lang === 'ko') return `평균 ${formatKRWShort(avgCost)}원~`;
-    const krwPerUsd = allRates?.['KRW'] ?? 1450;
-    const usd = Math.round(avgCost / krwPerUsd);
-    return `From $${usd.toLocaleString()}`;
-  })();
+  const costLabel = `평균 ${formatKRWShort(avgCost)}원~`;
   const photo = COUNTRY_PHOTOS[country.code];
   const fallbackStyle = photo
     ? { background: `linear-gradient(135deg, ${photo.fallbackFrom}, ${photo.fallbackTo})` }
@@ -159,7 +150,7 @@ function CountryCard({
         {/* 하단: 국가명 + 지역 */}
         <div className="absolute bottom-0 left-0 right-0 px-3 py-2.5">
           <p className="font-bold text-white text-sm leading-tight" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-            {lang === 'ko' ? country.nameKR : country.name}
+            {country.nameKR}
           </p>
           <p className="text-white/70 text-[10px] mt-0.5">{t.regionLabels[country.region as keyof typeof t.regionLabels] ?? country.region}</p>
         </div>

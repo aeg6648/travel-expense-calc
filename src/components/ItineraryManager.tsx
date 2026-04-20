@@ -160,7 +160,7 @@ function usePlacesSearch(query: string) {
 
 // ── Main component ──────────────────────────────────────────────────
 export default function ItineraryManager({ userId }: { userId: string }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -474,7 +474,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                 <span className="text-2xl">{country?.flag ?? '🌍'}</span>
                 <div>
                   <p className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">{trip.name}</p>
-                  <p className="text-xs text-slate-400">{(lang === 'ko' ? country?.nameKR : country?.name) ?? trip.countryCode} · {t.nightsDay(days)}</p>
+                  <p className="text-xs text-slate-400">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
                 </div>
               </div>
               <p className="text-xs text-slate-500 mb-3">{trip.startDate} ~ {trip.endDate}</p>
@@ -502,7 +502,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
 
 // ── Create trip form ────────────────────────────────────────────────
 function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; onCancel: () => void }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [name, setName] = useState('');
   const [countryCode, setCountryCode] = useState('JP');
   const [startDate, setStartDate] = useState('');
@@ -544,7 +544,7 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
           }}
           className={inputCls}
         >
-          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {lang === 'ko' ? c.nameKR : c.name}</option>)}
+          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.nameKR}</option>)}
         </select>
       </Field>
 

@@ -16,14 +16,9 @@ interface Props {
 }
 
 export default function CostSummaryCard({ country, style, duration, departureDate, currentKrwPerUsd, selectedCity, onStyleChange }: Props) {
-  const { t, lang } = useLang();
-  const displayName = lang === 'ko' ? country.nameKR : country.name;
-  const fmtKRW = (krw: number) => {
-    if (lang === 'ko') return `${formatKRWShort(krw)}원`;
-    if (krw >= 1_000_000) return `₩${(krw / 1_000_000).toFixed(1)}M`;
-    if (krw >= 1_000) return `₩${Math.round(krw / 1_000).toLocaleString()}K`;
-    return `₩${krw.toLocaleString()}`;
-  };
+  const { t } = useLang();
+  const displayName = country.nameKR;
+  const fmtKRW = (krw: number) => `${formatKRWShort(krw)}원`;
   const costs = country.costs[style];
   const durationRatio = duration / country.defaultDuration;
   const rateRatio = currentKrwPerUsd / 1380;
