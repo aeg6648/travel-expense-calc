@@ -1,73 +1,76 @@
-// Server-side storage for community posts, backed by Upstash Redis
-// (Vercel Marketplace → Upstash for Redis, or any Upstash Redis instance).
+// Server-side storage for community posts.
 //
-// This module picks whichever pair of env vars is present:
-//   Native/legacy:   KV_REST_API_URL        + KV_REST_API_TOKEN
-//   Upstash direct:  UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
-// Vercel now provisions the UPSTASH_* names when you install the Upstash
-// integration from Storage → Marketplace → Upstash for Redis.
+// Supports either:
+//   REDIS_URL      — TCP Redis connection string (Redis Cloud, Upstash TCP, etc.)
+//
+// The API route calls these helpers from a Node runtime (default for
+// app/api routes), so a TCP client like ioredis works fine.
 //
 // Auth is NOT verified here — the client passes authorSub in the body.
 // Upgrade path: verify a signed ID token on write endpoints before trusting
 // author claims.
 
-import { createClient, type VercelKV } from '@vercel/kv';
+import Redis from 'ioredis';
 import type { CommunityPost } from '@/components/Community';
 
 const KEY_INDEX = 'community:posts:ids';
 const key = (id: string) => `community:posts:${id}`;
 
-function pickEnv(): { url: string; token: string } | null {
-  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  return { url, token };
-}
-
-let clientCache: VercelKV | null = null;
-function getClient(): VercelKV | null {
+let clientCache: Redis | null = null;
+function getClient(): Redis | null {
   if (clientCache) return clientCache;
-  const env = pickEnv();
-  if (!env) return null;
-  clientCache = createClient({ url: env.url, token: env.token });
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  clientCache = new Redis(url, {
+    lazyConnect: false,
+    maxRetriesPerRequest: 2,
+    enableReadyCheck: true,
+  });
   return clientCache;
 }
 
 export function isKvConfigured(): boolean {
-  return pickEnv() !== null;
+  return !!process.env.REDIS_URL;
 }
 
+// Values are stored as JSON strings because ioredis returns strings.
+const encode = (v: unknown) => JSON.stringify(v);
+const decode = <T>(raw: string | null): T | null => {
+  if (!raw) return null;
+  try { return JSON.parse(raw) as T; } catch { return null; }
+};
+
 export async function listPosts(): Promise<CommunityPost[]> {
-  const kv = getClient();
-  if (!kv) return [];
-  const ids = await kv.zrange<string[]>(KEY_INDEX, 0, -1, { rev: true });
-  if (!ids || ids.length === 0) return [];
-  const posts = await kv.mget<(CommunityPost | null)[]>(...ids.map(key));
-  return posts.filter((p): p is CommunityPost => p !== null);
+  const r = getClient();
+  if (!r) return [];
+  const ids = await r.zrange(KEY_INDEX, 0, -1, 'REV');
+  if (!ids.length) return [];
+  const raws = await r.mget(...ids.map(key));
+  return raws.map(v => decode<CommunityPost>(v)).filter((p): p is CommunityPost => p !== null);
 }
 
 export async function createPost(post: CommunityPost): Promise<void> {
-  const kv = getClient();
-  if (!kv) throw new Error('KV not configured');
-  await kv.set(key(post.id), post);
-  await kv.zadd(KEY_INDEX, { score: new Date(post.createdAt).getTime(), member: post.id });
+  const r = getClient();
+  if (!r) throw new Error('Redis not configured');
+  await r.set(key(post.id), encode(post));
+  await r.zadd(KEY_INDEX, new Date(post.createdAt).getTime(), post.id);
 }
 
 export async function getPost(id: string): Promise<CommunityPost | null> {
-  const kv = getClient();
-  if (!kv) return null;
-  return (await kv.get<CommunityPost>(key(id))) ?? null;
+  const r = getClient();
+  if (!r) return null;
+  return decode<CommunityPost>(await r.get(key(id)));
 }
 
 export async function updatePost(post: CommunityPost): Promise<void> {
-  const kv = getClient();
-  if (!kv) throw new Error('KV not configured');
-  await kv.set(key(post.id), post);
+  const r = getClient();
+  if (!r) throw new Error('Redis not configured');
+  await r.set(key(post.id), encode(post));
 }
 
 export async function deletePost(id: string): Promise<void> {
-  const kv = getClient();
-  if (!kv) throw new Error('KV not configured');
-  await kv.del(key(id));
-  await kv.zrem(KEY_INDEX, id);
+  const r = getClient();
+  if (!r) throw new Error('Redis not configured');
+  await r.del(key(id));
+  await r.zrem(KEY_INDEX, id);
 }
