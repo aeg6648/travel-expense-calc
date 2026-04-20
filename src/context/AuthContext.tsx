@@ -50,19 +50,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Restore session from localStorage
+  // If name contains garbled chars (old Latin-1 decoded entry), discard it so user re-logs in cleanly
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) {
+        const parsed = JSON.parse(stored) as GoogleUser;
+        // Detect Latin-1 garbling: Korean chars in proper UTF-8 are >= U+AC00
+        // Garbled text uses characters like ë, ª, © (U+00EB, U+00AA, etc.)
+        const hasGarbled = /[\u0080-\u00FF]/.test(parsed.name ?? '');
+        if (hasGarbled) {
+          localStorage.removeItem(STORAGE_KEY);
+        } else {
+          setUser(parsed);
+        }
+      }
     } catch {}
     setLoading(false);
   }, []);
 
   const handleCredential = useCallback((response: { credential: string }) => {
     try {
-      // JWT payload is the second segment, base64url-encoded
+      // JWT payload is base64url-encoded UTF-8 JSON
+      // atob() returns Latin-1 bytes, so we need TextDecoder for non-ASCII (e.g. Korean names)
       const base64 = response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64)) as GoogleUser;
+      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder('utf-8').decode(bytes)) as GoogleUser;
       const u: GoogleUser = {
         sub: payload.sub,
         email: payload.email,

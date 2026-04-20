@@ -24,6 +24,8 @@ export interface BlogDataPoint {
   breakdown: CostBreakdown;
   source: string;
   city?: string;
+  lang?: 'ko' | 'en' | 'ja' | 'zh' | 'es' | 'fr' | 'de' | 'other';
+  reviewerOrigin?: string; // e.g. 'korean', 'japanese', 'american', 'chinese', 'european'
 }
 
 export interface HistoricalRate {

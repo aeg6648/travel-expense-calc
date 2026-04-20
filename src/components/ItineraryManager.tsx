@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { COUNTRIES } from '@/lib/travel-data';
+import type { RecommendedPlace } from '@/lib/recommended-places';
 import { useLang } from '@/context/LangContext';
 
 interface Activity {
@@ -16,6 +17,9 @@ interface Activity {
   currency: string;
   type: 'flight' | 'accommodation' | 'food' | 'activity' | 'transport' | 'other';
   notes: string;
+  city?: string;
+  menuItems?: string[];
+  transportMode?: string;
 }
 
 interface Trip {
@@ -53,6 +57,37 @@ const TYPE_ICONS: Record<Activity['type'], string> = {
   activity: '🎯', transport: '🚌', other: '📌',
 };
 
+// ── Currency chip presets ───────────────────────────────────────────
+type ChipSet = { amounts: number[]; label: (n: number) => string };
+
+const ACTIVITY_CHIPS: Record<string, ChipSet> = {
+  KRW: { amounts: [1, 3, 5, 10, 20, 50, 100],        label: n => `${n}만` },
+  JPY: { amounts: [500, 1000, 3000, 5000, 10000, 30000], label: n => n >= 10000 ? `${n/10000}万` : `${n}` },
+  USD: { amounts: [5, 10, 20, 50, 100, 200],           label: n => `$${n}` },
+  EUR: { amounts: [5, 10, 20, 50, 100, 200],           label: n => `€${n}` },
+  GBP: { amounts: [5, 10, 20, 50, 100, 200],           label: n => `£${n}` },
+  AUD: { amounts: [5, 10, 20, 50, 100, 200],           label: n => `A$${n}` },
+  CNY: { amounts: [10, 30, 50, 100, 200, 500],         label: n => `¥${n}` },
+  SGD: { amounts: [5, 10, 20, 50, 100, 200],           label: n => `S$${n}` },
+  THB: { amounts: [50, 100, 200, 500, 1000, 2000],     label: n => `฿${n}` },
+};
+const getActivityChips = (cur: string): ChipSet =>
+  ACTIVITY_CHIPS[cur] ?? { amounts: [10, 30, 50, 100, 200, 500], label: n => `${n}` };
+
+const BUDGET_CHIPS: Record<string, ChipSet> = {
+  KRW: { amounts: [50, 100, 150, 200, 300, 500],           label: n => `${n}만원` },
+  JPY: { amounts: [30000, 50000, 100000, 200000, 300000, 500000], label: n => `${n/10000}万` },
+  USD: { amounts: [300, 500, 1000, 1500, 2000, 3000],      label: n => `$${n}` },
+  EUR: { amounts: [300, 500, 1000, 1500, 2000, 3000],      label: n => `€${n}` },
+  GBP: { amounts: [200, 400, 800, 1200, 2000, 3000],       label: n => `£${n}` },
+  AUD: { amounts: [500, 1000, 1500, 2000, 3000, 5000],     label: n => `A$${n}` },
+  CNY: { amounts: [2000, 5000, 8000, 10000, 20000, 30000], label: n => `¥${n}` },
+  SGD: { amounts: [500, 800, 1200, 2000, 3000, 5000],      label: n => `S$${n}` },
+  THB: { amounts: [10000, 20000, 30000, 50000, 80000, 100000], label: n => `฿${(n/1000).toFixed(0)}k` },
+};
+const getBudgetChips = (cur: string): ChipSet =>
+  BUDGET_CHIPS[cur] ?? { amounts: [500, 1000, 1500, 2000, 3000, 5000], label: n => `${n}` };
+
 function storageKey(userId: string) {
   return `trip-b-itineraries-${userId}`;
 }
@@ -68,6 +103,35 @@ function saveTrips(userId: string, trips: Trip[]) {
 function tripDays(trip: Trip): number {
   if (!trip.startDate || !trip.endDate) return 1;
   return Math.max(1, Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000));
+}
+
+// ── Live place recommendations hook ────────────────────────────────
+// Module-level cache so repeated opens/city-changes don't re-fetch
+const _recsCache: Record<string, RecommendedPlace[]> = {};
+
+function useLiveRecommendations(countryCode: string, cityEn: string, category: string) {
+  const [places, setPlaces] = useState<RecommendedPlace[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!countryCode) return;
+    const key = `${countryCode}::${cityEn}::${category}`;
+    if (_recsCache[key]) { setPlaces(_recsCache[key]); return; }
+    setLoading(true);
+    const params = new URLSearchParams({ countryCode, category });
+    if (cityEn) params.set('city', cityEn);
+    fetch(`/api/places/recommend?${params.toString()}`)
+      .then(r => r.json())
+      .then(data => {
+        const result = (data.places ?? []) as RecommendedPlace[];
+        _recsCache[key] = result;
+        setPlaces(result);
+      })
+      .catch(() => setPlaces([]))
+      .finally(() => setLoading(false));
+  }, [countryCode, cityEn, category]);
+
+  return { places, loading };
 }
 
 // ── Places search hook ──────────────────────────────────────────────
@@ -123,6 +187,11 @@ export default function ItineraryManager({ userId }: { userId: string }) {
     updateTrip({ ...selectedTrip, activities: [...selectedTrip.activities, { ...act, id: crypto.randomUUID() }] });
   };
 
+  const addActivities = (acts: Omit<Activity, 'id'>[]) => {
+    if (!selectedTrip) return;
+    updateTrip({ ...selectedTrip, activities: [...selectedTrip.activities, ...acts.map(a => ({ ...a, id: crypto.randomUUID() }))] });
+  };
+
   const deleteActivity = (actId: string) => {
     if (!selectedTrip) return;
     updateTrip({ ...selectedTrip, activities: selectedTrip.activities.filter(a => a.id !== actId) });
@@ -133,6 +202,10 @@ export default function ItineraryManager({ userId }: { userId: string }) {
     updateTrip({ ...selectedTrip, activities: selectedTrip.activities.map(a => a.id === act.id ? act : a) });
     setEditingActivity(null);
   };
+
+  const [showMap, setShowMap] = useState(false);
+  const [mapDay, setMapDay] = useState(1);
+  const [showExplorer, setShowExplorer] = useState(false);
 
   // ── DETAIL VIEW ──────────────────────────────────────────────────
   if (view === 'detail' && selectedTrip) {
@@ -167,8 +240,8 @@ export default function ItineraryManager({ userId }: { userId: string }) {
 
           <div className="flex flex-wrap gap-3">
             {[
-              { label: t.budget, value: selectedTrip.budget > 0 ? `${selectedTrip.currency} ${Number(selectedTrip.budget).toLocaleString()}` : '—', color: 'text-slate-300' },
-              { label: t.budgetUsed, value: totalCost > 0 ? `${selectedTrip.currency} ${totalCost.toLocaleString()}` : '—', color: 'text-emerald-400' },
+              { label: t.budget, value: selectedTrip.budget > 0 ? fmtAmount(selectedTrip.budget, selectedTrip.currency) : '—', color: 'text-slate-300' },
+              { label: t.budgetUsed, value: totalCost > 0 ? fmtAmount(totalCost, selectedTrip.currency) : '—', color: 'text-emerald-400' },
               ...(selectedTrip.budget > 0 && totalCost > 0 ? [{ label: `${Math.round((totalCost / selectedTrip.budget) * 100)}%`, value: '', color: totalCost > selectedTrip.budget ? 'text-red-400' : 'text-indigo-400' }] : []),
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-slate-700/50 rounded-xl px-4 py-2">
@@ -193,15 +266,54 @@ export default function ItineraryManager({ userId }: { userId: string }) {
         </div>
 
         {/* Activity header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="text-sm font-semibold text-slate-300">{t.modeItinerary}</h3>
-          <button
-            onClick={() => { setEditingActivity(null); setShowActivityForm(v => !v); }}
-            className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-          >
-            {showActivityForm ? t.cancel : t.addActivity}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => { setShowMap(v => !v); setShowExplorer(false); if (!showMap) setMapDay(1); }}
+              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1 ${showMap ? 'bg-emerald-700/40 border-emerald-600/60 text-emerald-300' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+            >
+              🗺️ 지도
+            </button>
+            <button
+              onClick={() => { setShowExplorer(v => !v); setShowMap(false); }}
+              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1 ${showExplorer ? 'bg-violet-700/40 border-violet-600/60 text-violet-300' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+            >
+              🛍️ 장소 탐색
+            </button>
+            <button
+              onClick={() => { setEditingActivity(null); setShowActivityForm(v => !v); setShowExplorer(false); setShowMap(false); }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            >
+              {showActivityForm ? t.cancel : t.addActivity}
+            </button>
+          </div>
         </div>
+
+        {/* Map View */}
+        {showMap && (
+          <MapView
+            activities={selectedTrip.activities}
+            days={days}
+            selectedDay={mapDay}
+            onDayChange={setMapDay}
+            startDate={selectedTrip.startDate}
+          />
+        )}
+
+        {/* Place Explorer */}
+        {showExplorer && (
+          <PlaceExplorer
+            countryCode={selectedTrip.countryCode}
+            days={days}
+            defaultCurrency={selectedTrip.currency}
+            onConfirm={(acts) => {
+              addActivities(acts);
+              setShowExplorer(false);
+            }}
+            onClose={() => setShowExplorer(false)}
+          />
+        )}
 
         {showActivityForm && (
           <ActivityForm
@@ -209,6 +321,12 @@ export default function ItineraryManager({ userId }: { userId: string }) {
             editing={editingActivity}
             defaultCurrency={selectedTrip.currency}
             countryName={country?.nameKR ?? ''}
+            countryCode={selectedTrip.countryCode}
+            suggestedCity={(() => {
+              // 가장 최근 city가 지정된 활동에서 도시 추론
+              const withCity = [...selectedTrip.activities].reverse().find(a => a.city && a.city !== '전국');
+              return withCity?.city ?? null;
+            })()}
             onSave={(act) => {
               if (editingActivity) saveEdited({ ...act, id: editingActivity.id });
               else addActivity(act);
@@ -236,7 +354,10 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                 </span>
                 <div className="flex-1 h-px bg-slate-700/60" />
                 <span className="text-[10px] text-slate-500">
-                  {selectedTrip.currency} {dayActs.reduce((s, a) => s + (a.cost || 0), 0).toLocaleString()}
+                  {(() => {
+                    const total = dayActs.reduce((s, a) => s + (a.cost || 0), 0);
+                    return fmtAmount(total, selectedTrip.currency);
+                  })()}
                 </span>
               </div>
 
@@ -251,7 +372,10 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-200 truncate">{act.title}</p>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="text-sm font-medium text-slate-200 truncate">{act.title}</p>
+                            {act.city && <span className="text-[10px] text-slate-500 shrink-0 bg-slate-700/60 px-1.5 py-0.5 rounded-full">{act.city}</span>}
+                          </div>
                           {act.location && (
                             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                               <span>📍</span>
@@ -259,12 +383,24 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                               {act.rating && <span className="shrink-0 text-amber-400">★ {act.rating}</span>}
                             </p>
                           )}
+                          {act.transportMode && (
+                            <p className="text-xs text-sky-400 mt-0.5">🚌 {act.transportMode}</p>
+                          )}
+                          {act.menuItems && act.menuItems.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {act.menuItems.map(item => (
+                                <span key={item} className="text-[10px] bg-amber-900/30 text-amber-300 border border-amber-800/40 px-1.5 py-0.5 rounded-md">{item}</span>
+                              ))}
+                            </div>
+                          )}
                           {act.notes && <p className="text-xs text-slate-500 mt-0.5">{act.notes}</p>}
                         </div>
                         <div className="shrink-0 text-right">
                           {act.time && <p className="text-xs text-slate-500">{act.time}</p>}
                           {act.cost > 0 && (
-                            <p className="text-xs font-semibold text-slate-300">{act.currency} {act.cost.toLocaleString()}</p>
+                            <p className="text-xs font-semibold text-slate-300">
+                              {fmtAmount(act.cost, act.currency)}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -345,7 +481,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">{trip.activities.length} {t.totalActivities}</span>
                 {trip.budget > 0 && (
-                  <span className="text-slate-400">{trip.currency} {totalCost.toLocaleString()} / {Number(trip.budget).toLocaleString()}</span>
+                  <span className="text-slate-400">{fmtAmount(totalCost, trip.currency)} / {fmtAmount(trip.budget, trip.currency)}</span>
                 )}
               </div>
               {trip.budget > 0 && (
@@ -372,11 +508,12 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [budget, setBudget] = useState('');
-  const [currency, setCurrency] = useState('KRW');
+  const [currency, setCurrency] = useState(COUNTRY_DEFAULT_CURRENCY['JP'] ?? 'KRW');
   const [notes, setNotes] = useState('');
 
   const handleSave = () => {
     if (!name.trim()) { alert(t.tripName); return; }
+    if (startDate && endDate && endDate < startDate) { alert('종료일이 시작일보다 빠를 수 없어요.'); return; }
     onSave({
       id: crypto.randomUUID(),
       name: name.trim(), countryCode, startDate, endDate,
@@ -398,26 +535,49 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
       </Field>
 
       <Field label={t.tripCountry}>
-        <select value={countryCode} onChange={e => setCountryCode(e.target.value)} className={inputCls}>
+        <select
+          value={countryCode}
+          onChange={e => {
+            setCountryCode(e.target.value);
+            const def = COUNTRY_DEFAULT_CURRENCY[e.target.value];
+            if (def) { setCurrency(def); setBudget(''); }
+          }}
+          className={inputCls}
+        >
           {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {lang === 'ko' ? c.nameKR : c.name}</option>)}
         </select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={t.startDate}>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => {
+              setStartDate(e.target.value);
+              if (endDate && e.target.value > endDate) setEndDate(e.target.value);
+            }}
+            max={endDate || undefined}
+            className={inputCls}
+          />
         </Field>
         <Field label={t.endDate}>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            min={startDate || undefined}
+            className={inputCls}
+          />
         </Field>
       </div>
 
       <Field label={t.budget}>
-        <div className="flex gap-2 mb-2">
-          <select value={currency} onChange={e => { setCurrency(e.target.value); setBudget(''); }} className={`${inputCls} w-24 shrink-0`}>
+        <div className="flex gap-2 mb-2 max-w-xs">
+          <select value={currency} onChange={e => { setCurrency(e.target.value); setBudget(''); }} className="bg-slate-700/50 border border-slate-600 rounded-xl px-2 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors shrink-0 w-[88px]">
             {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <input
               type="text"
               inputMode="numeric"
@@ -431,16 +591,12 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
             )}
           </div>
         </div>
+        {currency === 'KRW' && <p className="text-[10px] text-slate-500 -mt-1 mb-1">예: 150 → 150만원 (1,500,000원)</p>}
         <div className="flex flex-wrap gap-1.5">
-          {(currency === 'KRW'
-            ? [50, 100, 150, 200, 300, 500]
-            : currency === 'JPY'
-            ? [50000, 100000, 150000, 200000, 300000, 500000]
-            : [500, 1000, 1500, 2000, 3000, 5000]
-          ).map(v => (
+          {getBudgetChips(currency).amounts.map(v => (
             <button key={v} type="button" onClick={() => setBudget(String(v))}
               className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budget === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600'}`}>
-              {currency === 'KRW' ? `${v}만원` : currency === 'JPY' ? `${v/10000}万` : `${v}`}
+              {getBudgetChips(currency).label(v)}
             </button>
           ))}
         </div>
@@ -458,14 +614,181 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
   );
 }
 
+const TRANSPORT_MODES = ['지하철', '버스', '택시', '도보', '고속철', '신칸센', 'MRT', '트램', '페리', '비행기', '렌터카', '오토바이', '기차'];
+
+// ── Country → city list (ko display / en for Google queries) ────────
+const COUNTRY_CITY_MAP: Record<string, { ko: string; en: string }[]> = {
+  JP: [
+    { ko: '도쿄', en: 'Tokyo' }, { ko: '오사카', en: 'Osaka' },
+    { ko: '교토', en: 'Kyoto' }, { ko: '후쿠오카', en: 'Fukuoka' },
+    { ko: '나라', en: 'Nara' }, { ko: '삿포로', en: 'Sapporo' },
+    { ko: '나고야', en: 'Nagoya' }, { ko: '가마쿠라', en: 'Kamakura' },
+    { ko: '히로시마', en: 'Hiroshima' }, { ko: '오키나와', en: 'Okinawa' },
+  ],
+  TH: [
+    { ko: '방콕', en: 'Bangkok' }, { ko: '푸켓', en: 'Phuket' },
+    { ko: '치앙마이', en: 'Chiang Mai' }, { ko: '파타야', en: 'Pattaya' },
+    { ko: '코사무이', en: 'Koh Samui' }, { ko: '코창', en: 'Koh Chang' },
+  ],
+  VN: [
+    { ko: '하노이', en: 'Hanoi' }, { ko: '호찌민', en: 'Ho Chi Minh City' },
+    { ko: '다낭', en: 'Da Nang' }, { ko: '호이안', en: 'Hoi An' },
+    { ko: '하롱', en: 'Ha Long' }, { ko: '냐짱', en: 'Nha Trang' },
+    { ko: '달랏', en: 'Da Lat' }, { ko: '푸꾸옥', en: 'Phu Quoc' },
+  ],
+  TW: [
+    { ko: '타이베이', en: 'Taipei' }, { ko: '타이중', en: 'Taichung' },
+    { ko: '가오슝', en: 'Kaohsiung' }, { ko: '타이난', en: 'Tainan' },
+    { ko: '화롄', en: 'Hualien' }, { ko: '컨딩', en: 'Kenting' },
+  ],
+  SG: [{ ko: '싱가포르', en: 'Singapore' }],
+  HK: [{ ko: '홍콩', en: 'Hong Kong' }, { ko: '마카오', en: 'Macau' }],
+  FR: [
+    { ko: '파리', en: 'Paris' }, { ko: '니스', en: 'Nice' },
+    { ko: '리옹', en: 'Lyon' }, { ko: '마르세유', en: 'Marseille' },
+    { ko: '보르도', en: 'Bordeaux' }, { ko: '몽생미셸', en: 'Mont Saint Michel' },
+  ],
+  ES: [
+    { ko: '바르셀로나', en: 'Barcelona' }, { ko: '마드리드', en: 'Madrid' },
+    { ko: '세비야', en: 'Seville' }, { ko: '그라나다', en: 'Granada' },
+    { ko: '발렌시아', en: 'Valencia' }, { ko: '산티아고', en: 'Santiago de Compostela' },
+  ],
+  IT: [
+    { ko: '로마', en: 'Rome' }, { ko: '밀라노', en: 'Milan' },
+    { ko: '베네치아', en: 'Venice' }, { ko: '피렌체', en: 'Florence' },
+    { ko: '나폴리', en: 'Naples' }, { ko: '아말피', en: 'Amalfi' },
+    { ko: '시칠리아', en: 'Sicily' }, { ko: '친퀘테레', en: 'Cinque Terre' },
+  ],
+  TR: [
+    { ko: '이스탄불', en: 'Istanbul' }, { ko: '카파도키아', en: 'Cappadocia' },
+    { ko: '안탈리아', en: 'Antalya' }, { ko: '파묵칼레', en: 'Pamukkale' },
+    { ko: '에페스', en: 'Ephesus' }, { ko: '보드룸', en: 'Bodrum' },
+  ],
+  GR: [
+    { ko: '아테네', en: 'Athens' }, { ko: '산토리니', en: 'Santorini' },
+    { ko: '미코노스', en: 'Mykonos' }, { ko: '크레타', en: 'Crete' },
+    { ko: '로도스', en: 'Rhodes' },
+  ],
+  PT: [
+    { ko: '리스본', en: 'Lisbon' }, { ko: '포르투', en: 'Porto' },
+    { ko: '알가르베', en: 'Algarve' }, { ko: '신트라', en: 'Sintra' },
+  ],
+  US: [
+    { ko: '뉴욕', en: 'New York' }, { ko: '로스앤젤레스', en: 'Los Angeles' },
+    { ko: '하와이', en: 'Hawaii' }, { ko: '라스베가스', en: 'Las Vegas' },
+    { ko: '샌프란시스코', en: 'San Francisco' }, { ko: '시카고', en: 'Chicago' },
+    { ko: '마이애미', en: 'Miami' }, { ko: '시애틀', en: 'Seattle' },
+    { ko: '보스턴', en: 'Boston' }, { ko: '워싱턴DC', en: 'Washington DC' },
+  ],
+  CA: [
+    { ko: '밴쿠버', en: 'Vancouver' }, { ko: '토론토', en: 'Toronto' },
+    { ko: '퀘벡', en: 'Quebec City' }, { ko: '몬트리올', en: 'Montreal' },
+    { ko: '밴프', en: 'Banff' },
+  ],
+  AU: [
+    { ko: '시드니', en: 'Sydney' }, { ko: '멜버른', en: 'Melbourne' },
+    { ko: '골드코스트', en: 'Gold Coast' }, { ko: '케언스', en: 'Cairns' },
+    { ko: '브리즈번', en: 'Brisbane' }, { ko: '퍼스', en: 'Perth' },
+  ],
+  NZ: [
+    { ko: '오클랜드', en: 'Auckland' }, { ko: '퀸스타운', en: 'Queenstown' },
+    { ko: '크라이스트처치', en: 'Christchurch' }, { ko: '웰링턴', en: 'Wellington' },
+  ],
+  GB: [
+    { ko: '런던', en: 'London' }, { ko: '에딘버러', en: 'Edinburgh' },
+    { ko: '맨체스터', en: 'Manchester' }, { ko: '옥스포드', en: 'Oxford' },
+    { ko: '코츠월드', en: 'Cotswolds' },
+  ],
+  DE: [
+    { ko: '베를린', en: 'Berlin' }, { ko: '뮌헨', en: 'Munich' },
+    { ko: '함부르크', en: 'Hamburg' }, { ko: '프랑크푸르트', en: 'Frankfurt' },
+    { ko: '로텐부르크', en: 'Rothenburg' }, { ko: '퓌센', en: 'Fussen' },
+  ],
+  AT: [
+    { ko: '빈', en: 'Vienna' }, { ko: '잘츠부르크', en: 'Salzburg' },
+    { ko: '인스브루크', en: 'Innsbruck' }, { ko: '할슈타트', en: 'Hallstatt' },
+  ],
+  CH: [
+    { ko: '취리히', en: 'Zurich' }, { ko: '제네바', en: 'Geneva' },
+    { ko: '인터라켄', en: 'Interlaken' }, { ko: '루체른', en: 'Lucerne' },
+  ],
+  NL: [
+    { ko: '암스테르담', en: 'Amsterdam' }, { ko: '로테르담', en: 'Rotterdam' },
+    { ko: '헤이그', en: 'The Hague' }, { ko: '잔세스칸스', en: 'Zaanse Schans' },
+  ],
+  BE: [
+    { ko: '브뤼셀', en: 'Brussels' }, { ko: '브뤼헤', en: 'Bruges' },
+    { ko: '겐트', en: 'Ghent' }, { ko: '앤트워프', en: 'Antwerp' },
+  ],
+  CN: [
+    { ko: '베이징', en: 'Beijing' }, { ko: '상하이', en: 'Shanghai' },
+    { ko: '청두', en: 'Chengdu' }, { ko: '시안', en: "Xi'an" },
+    { ko: '계림', en: 'Guilin' }, { ko: '장자제', en: 'Zhangjiajie' },
+  ],
+  IN: [
+    { ko: '뉴델리', en: 'New Delhi' }, { ko: '뭄바이', en: 'Mumbai' },
+    { ko: '바라나시', en: 'Varanasi' }, { ko: '아그라', en: 'Agra' },
+    { ko: '자이푸르', en: 'Jaipur' }, { ko: '고아', en: 'Goa' },
+  ],
+  PH: [
+    { ko: '마닐라', en: 'Manila' }, { ko: '세부', en: 'Cebu' },
+    { ko: '보라카이', en: 'Boracay' }, { ko: '팔라완', en: 'Palawan' },
+    { ko: '시아르가오', en: 'Siargao' },
+  ],
+  ID: [
+    { ko: '발리', en: 'Bali' }, { ko: '자카르타', en: 'Jakarta' },
+    { ko: '롬복', en: 'Lombok' }, { ko: '족자카르타', en: 'Yogyakarta' },
+    { ko: '코모도', en: 'Komodo' },
+  ],
+  MA: [
+    { ko: '마라케시', en: 'Marrakech' }, { ko: '페스', en: 'Fez' },
+    { ko: '카사블랑카', en: 'Casablanca' }, { ko: '셰프샤우엔', en: 'Chefchaouen' },
+  ],
+  AE: [
+    { ko: '두바이', en: 'Dubai' }, { ko: '아부다비', en: 'Abu Dhabi' },
+  ],
+  MX: [
+    { ko: '멕시코시티', en: 'Mexico City' }, { ko: '칸쿤', en: 'Cancun' },
+    { ko: '과달라하라', en: 'Guadalajara' }, { ko: '플라야델카르멘', en: 'Playa del Carmen' },
+  ],
+  BR: [
+    { ko: '리우데자네이루', en: 'Rio de Janeiro' }, { ko: '상파울루', en: 'Sao Paulo' },
+    { ko: '이과수', en: 'Iguazu' }, { ko: '포르탈레자', en: 'Fortaleza' },
+  ],
+  PE: [
+    { ko: '리마', en: 'Lima' }, { ko: '쿠스코', en: 'Cusco' },
+    { ko: '마추픽추', en: 'Machu Picchu' },
+  ],
+};
+
+// ── Country default currency ────────────────────────────────────────
+const COUNTRY_DEFAULT_CURRENCY: Record<string, string> = {
+  JP: 'JPY', KR: 'KRW', TH: 'THB', VN: 'VND', TW: 'TWD', SG: 'SGD',
+  HK: 'HKD', CN: 'CNY', PH: 'PHP', ID: 'IDR', IN: 'INR', MY: 'MYR',
+  FR: 'EUR', ES: 'EUR', IT: 'EUR', DE: 'EUR', GR: 'EUR', PT: 'EUR',
+  NL: 'EUR', AT: 'EUR', BE: 'EUR', CH: 'CHF', GB: 'GBP',
+  SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN',
+  US: 'USD', CA: 'CAD', AU: 'AUD', NZ: 'NZD',
+  TR: 'TRY', AE: 'AED', SA: 'SAR', IL: 'ILS',
+  MX: 'MXN', BR: 'BRL', AR: 'ARS', PE: 'PEN', CL: 'CLP',
+  ZA: 'ZAR', MA: 'MAD', EG: 'EGP',
+};
+
+function fmtAmount(amount: number, currency: string): string {
+  if (currency === 'KRW') return `${(amount / 10000).toLocaleString()}만원`;
+  return `${currency} ${Number(amount).toLocaleString()}`;
+}
+
 // ── Activity form with Google Places search ─────────────────────────
 function ActivityForm({
-  days, editing, defaultCurrency, countryName, onSave, onCancel,
+  days, editing, defaultCurrency, countryName, countryCode, suggestedCity, onSave, onCancel,
 }: {
   days: number;
   editing: Activity | null;
   defaultCurrency: string;
   countryName: string;
+  countryCode: string;
+  suggestedCity?: string | null;
   onSave: (act: Omit<Activity, 'id'>) => void;
   onCancel: () => void;
 }) {
@@ -477,14 +800,48 @@ function ActivityForm({
   const [locationConfirmed, setLocationConfirmed] = useState(editing?.location ?? '');
   const [locationPlaceId, setLocationPlaceId] = useState(editing?.locationPlaceId ?? '');
   const [rating, setRating] = useState(editing?.rating);
-  // KRW는 만원 단위로 표시 (내부 저장은 원 단위)
   const toDisplay = (rawKRW: number, cur: string) => cur === 'KRW' ? String(rawKRW / 10000) : String(rawKRW);
   const [cost, setCost] = useState(editing ? toDisplay(editing.cost, editing.currency) : '');
   const [currency, setCurrency] = useState(editing?.currency ?? defaultCurrency);
   const [type, setType] = useState<Activity['type']>(editing?.type ?? 'activity');
   const [notes, setNotes] = useState(editing?.notes ?? '');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedMenuItems, setSelectedMenuItems] = useState<string[]>(editing?.menuItems ?? []);
+  const [availableMenuItems, setAvailableMenuItems] = useState<string[]>([]);
+  const [transportMode, setTransportMode] = useState(editing?.transportMode ?? '');
+  const [showRecommended, setShowRecommended] = useState(!editing);
+  // 현재 도시 필터: 이전 활동에서 추론된 도시 혹은 editing 중인 활동의 도시
+  const [filterCity, setFilterCity] = useState<string>(editing?.city ?? suggestedCity ?? '');
   const searchRef = useRef<HTMLDivElement>(null);
+
+  const cities = COUNTRY_CITY_MAP[countryCode] ?? [];
+  const cityEn = cities.find(c => c.ko === filterCity)?.en ?? '';
+  const { places: recommendedPlaces, loading: loadingRecs } = useLiveRecommendations(countryCode, cityEn, 'all');
+  const availableCities = cities.map(c => c.ko);
+
+  const applyRecommended = (place: RecommendedPlace) => {
+    setTitle(place.name);
+    setLocationQuery(place.nameLocal);
+    setLocationConfirmed(place.nameLocal);
+    setType(place.type === 'food' ? 'food' : place.type === 'transport' ? 'transport' : place.type === 'accommodation' ? 'accommodation' : 'activity');
+    setCurrency(place.currency);
+    setCost(place.currency === 'KRW' ? String(place.costKRW / 10000) : String(place.costLocal));
+    if (place.rating) setRating(place.rating);
+    if (place.menuItems) { setAvailableMenuItems(place.menuItems); setSelectedMenuItems([]); }
+    else setAvailableMenuItems([]);
+    if (place.city && place.city !== '전국') {
+      // Live API returns English city names; map back to Korean for display
+      const koCity = COUNTRY_CITY_MAP[countryCode]?.find(c => c.en === place.city)?.ko ?? place.city;
+      setFilterCity(koCity);
+    }
+    if (place.transportPreset) setTransportMode(place.transportPreset.mode + (place.transportPreset.route ? ` — ${place.transportPreset.route}` : ''));
+    else setTransportMode('');
+    setShowRecommended(false);
+  };
+
+  const toggleMenuItem = (item: string) => {
+    setSelectedMenuItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
+  };
 
   // append country name to narrow results
   const searchQuery = locationQuery.length >= 2
@@ -518,14 +875,94 @@ function ActivityForm({
       locationPlaceId, rating,
       cost: currency === 'KRW' ? (Number(cost) || 0) * 10000 : (Number(cost) || 0), currency, type,
       notes,
+      city: filterCity || undefined,
+      menuItems: selectedMenuItems.length > 0 ? selectedMenuItems : undefined,
+      transportMode: transportMode.trim() || undefined,
     });
   };
 
   return (
-    <div className="rounded-2xl p-4 border border-indigo-700/40 bg-indigo-900/10 space-y-3">
-      <h3 className="text-sm font-semibold text-slate-200">{editing ? t.editTrip : t.addActivity}</h3>
+    <div className="rounded-2xl p-4 border border-indigo-700/40 bg-indigo-900/10 space-y-3 max-w-2xl">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-200">{editing ? t.editTrip : t.addActivity}</h3>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => setShowRecommended(v => !v)}
+            className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1 ${showRecommended ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+          >
+            {loadingRecs ? <span className="w-2 h-2 rounded-full bg-current animate-pulse inline-block" /> : '⭐'}
+            구글 추천
+          </button>
+        )}
+      </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      {/* Recommended Places Quick-Select */}
+      {showRecommended && (
+        <div className="space-y-2.5">
+          {/* 도시 필터 */}
+          {availableCities.length > 1 && (
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => setFilterCity('')}
+                className={`px-2.5 py-0.5 text-[11px] rounded-full border transition-all ${!filterCity ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+              >전체</button>
+              {availableCities.map(city => (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => setFilterCity(city === filterCity ? '' : city)}
+                  className={`px-2.5 py-0.5 text-[11px] rounded-full border transition-all ${filterCity === city ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+                >{city}</button>
+              ))}
+            </div>
+          )}
+          {filterCity && (
+            <p className="text-[10px] text-indigo-400">📍 {filterCity} 기준 구글 추천</p>
+          )}
+          {/* 카테고리별 목록 */}
+          {loadingRecs ? (
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-8 w-24 rounded-xl bg-slate-700/50 animate-pulse" />
+              ))}
+            </div>
+          ) : recommendedPlaces.length === 0 ? (
+            <p className="text-[10px] text-slate-600 py-1">추천 장소를 불러오지 못했어요</p>
+          ) : (
+            (['food', 'activity', 'transport', 'accommodation'] as const).map(cat => {
+              const items = recommendedPlaces.filter(p => p.type === cat);
+              if (items.length === 0) return null;
+              const catLabel = cat === 'food' ? '🍽️ 맛집' : cat === 'activity' ? '🎯 관광' : cat === 'transport' ? '🚌 교통' : '🏨 숙박';
+              return (
+                <div key={cat}>
+                  <p className="text-[10px] text-slate-500 mb-1">{catLabel}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map(place => (
+                      <button
+                        key={place.id}
+                        type="button"
+                        onClick={() => applyRecommended(place)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-600 bg-slate-800 hover:bg-slate-700 hover:border-indigo-500 transition-all text-left"
+                      >
+                        <span className="text-xs font-medium text-slate-200 truncate max-w-[120px]">{place.name}</span>
+                        {place.rating && <span className="text-[10px] text-amber-400 shrink-0">★{place.rating}</span>}
+                        {place.costLocal > 0
+                          ? <span className="text-[10px] text-indigo-400 shrink-0">{place.currency} {place.costLocal.toLocaleString()}</span>
+                          : <span className="text-[10px] text-emerald-400 shrink-0">무료</span>
+                        }
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <div>
           <label className="text-[11px] text-slate-400 block mb-1">{t.activityDay}</label>
           <select value={day} onChange={e => setDay(Number(e.target.value))} className={inputSmCls}>
@@ -536,7 +973,7 @@ function ActivityForm({
           <label className="text-[11px] text-slate-400 block mb-1">{t.activityTime}</label>
           <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputSmCls} />
         </div>
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <label className="text-[11px] text-slate-400 block mb-1">{t.activityType}</label>
           <select value={type} onChange={e => setType(e.target.value as Activity['type'])} className={inputSmCls}>
             {(Object.keys(TYPE_ICONS) as Activity['type'][]).map(k => (
@@ -557,12 +994,16 @@ function ActivityForm({
               placeholder={t.locationPlaceholder}
               className={`${inputSmCls} pr-7`}
             />
-            {loading && (
+            {locationConfirmed ? (
+              <button
+                type="button"
+                onClick={() => { setLocationQuery(''); setLocationConfirmed(''); setLocationPlaceId(''); setRating(undefined); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-emerald-400 hover:text-red-400 transition-colors"
+                title="위치 초기화"
+              >✓</button>
+            ) : loading ? (
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 animate-pulse">…</span>
-            )}
-            {locationConfirmed && (
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-emerald-400">✓</span>
-            )}
+            ) : null}
           </div>
 
           {showSuggestions && results.length > 0 && (
@@ -601,11 +1042,11 @@ function ActivityForm({
 
       <div>
         <label className="text-[11px] text-slate-400 block mb-1">{t.activityCost}</label>
-        <div className="flex gap-1.5 mb-1.5">
-          <select value={currency} onChange={e => { setCurrency(e.target.value); setCost(''); }} className={`${inputSmCls} w-20 shrink-0`}>
+        <div className="flex gap-2 mb-1.5 max-w-xs">
+          <select value={currency} onChange={e => { setCurrency(e.target.value); setCost(''); }} className="bg-slate-700/70 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors shrink-0 w-[88px]">
             {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <input
               type="text"
               inputMode="numeric"
@@ -620,19 +1061,14 @@ function ActivityForm({
           </div>
         </div>
         <div className="flex flex-wrap gap-1">
-          {(currency === 'KRW'
-            ? [1, 3, 5, 10, 20, 50, 100]
-            : currency === 'JPY'
-            ? [1000, 3000, 5000, 10000, 30000, 50000]
-            : [10, 30, 50, 100, 200, 500]
-          ).map(amt => (
+          {getActivityChips(currency).amounts.map(amt => (
             <button
               key={amt}
               type="button"
               onClick={() => setCost(String((Number(cost) || 0) + amt))}
               className="px-2 py-0.5 text-[10px] rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 transition-colors"
             >
-              +{currency === 'KRW' ? `${amt}만` : currency === 'JPY' && amt >= 10000 ? `${amt/10000}万` : amt.toLocaleString()}
+              +{getActivityChips(currency).label(amt)}
             </button>
           ))}
           {cost !== '' && cost !== '0' && (
@@ -643,6 +1079,54 @@ function ActivityForm({
           )}
         </div>
       </div>
+
+      {/* Menu items selection (food type) */}
+      {type === 'food' && availableMenuItems.length > 0 && (
+        <div>
+          <label className="text-[11px] text-slate-400 block mb-1.5">🍽️ 메뉴 선택 <span className="text-slate-600">(선택 항목이 일정에 표시됩니다)</span></label>
+          <div className="flex flex-wrap gap-1.5">
+            {availableMenuItems.map(item => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => toggleMenuItem(item)}
+                className={`px-2.5 py-1 text-[11px] rounded-lg border transition-all ${
+                  selectedMenuItems.includes(item)
+                    ? 'bg-amber-900/40 border-amber-700/60 text-amber-300'
+                    : 'bg-slate-700/60 border-slate-600 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {selectedMenuItems.includes(item) ? '✓ ' : ''}{item}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Transport mode (transport type) */}
+      {type === 'transport' && (
+        <div>
+          <label className="text-[11px] text-slate-400 block mb-1.5">🚌 교통 수단 / 노선</label>
+          <input
+            value={transportMode}
+            onChange={e => setTransportMode(e.target.value)}
+            placeholder="예: 지하철 — 긴자선, 오모테산도역"
+            className={inputSmCls}
+          />
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {TRANSPORT_MODES.map(mode => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setTransportMode(transportMode === mode ? '' : mode)}
+                className={`px-2 py-0.5 text-[10px] rounded-md border transition-colors ${transportMode === mode ? 'bg-indigo-700/60 border-indigo-500/60 text-indigo-300' : 'bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-slate-200 border-slate-600'}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="text-[11px] text-slate-400 block mb-1">{t.activityNotes}</label>
@@ -656,6 +1140,330 @@ function ActivityForm({
           disabled={!title.trim()}
           className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-medium transition-colors"
         >{t.save}</button>
+      </div>
+    </div>
+  );
+}
+
+// ── MapView component ───────────────────────────────────────────────
+function MapView({
+  activities,
+  days,
+  selectedDay,
+  onDayChange,
+}: {
+  activities: Activity[];
+  days: number;
+  selectedDay: number;
+  onDayChange: (d: number) => void;
+  startDate: string;
+}) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+
+  const dayActivities = activities
+    .filter(a => a.day === selectedDay && a.location)
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  const embedUrl = (() => {
+    if (!apiKey || dayActivities.length === 0) return '';
+    if (dayActivities.length === 1) {
+      const q = dayActivities[0].locationPlaceId
+        ? `place_id:${dayActivities[0].locationPlaceId}`
+        : encodeURIComponent(dayActivities[0].location);
+      return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${q}&language=ko`;
+    }
+    const enc = (a: Activity) =>
+      a.locationPlaceId ? `place_id:${a.locationPlaceId}` : encodeURIComponent(a.location);
+    const origin = enc(dayActivities[0]);
+    const dest = enc(dayActivities[dayActivities.length - 1]);
+    const waypoints = dayActivities.slice(1, -1).map(enc).join('|');
+    let url = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${origin}&destination=${dest}&language=ko`;
+    if (waypoints) url += `&waypoints=${waypoints}`;
+    return url;
+  })();
+
+  return (
+    <div className="bg-slate-800 rounded-2xl border border-emerald-700/40 overflow-hidden">
+      <div className="flex items-center gap-1 px-4 py-3 border-b border-slate-700/60 overflow-x-auto">
+        <span className="text-xs text-slate-400 shrink-0 mr-1">Day</span>
+        {Array.from({ length: days }, (_, i) => i + 1).map(d => {
+          const hasLocs = activities.some(a => a.day === d && a.location);
+          return (
+            <button
+              key={d}
+              onClick={() => onDayChange(d)}
+              className={`shrink-0 text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                selectedDay === d
+                  ? 'bg-emerald-700/40 border-emerald-600/60 text-emerald-300'
+                  : hasLocs
+                  ? 'border-slate-600 text-slate-300 hover:bg-slate-700'
+                  : 'border-slate-700/40 text-slate-600'
+              }`}
+            >{d}</button>
+          );
+        })}
+      </div>
+
+      {embedUrl ? (
+        <iframe
+          src={embedUrl}
+          className="w-full h-72 border-0"
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      ) : !apiKey ? (
+        <div className="h-48 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
+          <span className="text-2xl">🗺️</span>
+          <p>지도를 표시하려면 Google Maps API 키가 필요해요</p>
+        </div>
+      ) : (
+        <div className="h-48 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
+          <span className="text-2xl">📍</span>
+          <p>Day {selectedDay}에 위치가 지정된 활동이 없어요</p>
+          <p className="text-xs text-slate-600">활동 추가 시 위치를 검색해 등록해보세요</p>
+        </div>
+      )}
+
+      {dayActivities.length > 0 && (
+        <div className="px-4 py-3 flex flex-col gap-1.5">
+          {dayActivities.map((act, idx) => (
+            <div key={act.id} className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-800/50 text-emerald-300 flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
+              <span className="truncate flex-1 min-w-0">{act.location}</span>
+              {act.time && <span className="shrink-0 text-slate-500">{act.time}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PlaceExplorer component ─────────────────────────────────────────
+interface CartEntry {
+  place: RecommendedPlace;
+  day: number;
+  time: string;
+}
+
+function PlaceExplorer({
+  countryCode,
+  days,
+  onConfirm,
+  onClose,
+}: {
+  countryCode: string;
+  days: number;
+  defaultCurrency: string;
+  onConfirm: (acts: Omit<Activity, 'id'>[]) => void;
+  onClose: () => void;
+}) {
+  const explorerCities = COUNTRY_CITY_MAP[countryCode] ?? [];
+  const [filterCityKo, setFilterCityKo] = useState('');
+  const [filterCat, setFilterCat] = useState<'all' | RecommendedPlace['type']>('all');
+  const [cart, setCart] = useState<CartEntry[]>([]);
+  const [showCart, setShowCart] = useState(false);
+
+  const cityEn = explorerCities.find(c => c.ko === filterCityKo)?.en ?? '';
+  const { places, loading } = useLiveRecommendations(countryCode, cityEn, filterCat);
+
+  const inCart = (id: string) => cart.some(e => e.place.id === id);
+
+  const toggleCart = (place: RecommendedPlace) => {
+    if (inCart(place.id)) {
+      setCart(prev => prev.filter(e => e.place.id !== place.id));
+    } else {
+      setCart(prev => [...prev, { place, day: 1, time: '' }]);
+      setShowCart(true);
+    }
+  };
+
+  const updateCartEntry = (idx: number, patch: Partial<CartEntry>) => {
+    setCart(prev => prev.map((e, i) => i === idx ? { ...e, ...patch } : e));
+  };
+
+  const handleConfirm = () => {
+    const acts: Omit<Activity, 'id'>[] = cart.map(e => {
+      // Resolve the Korean city name for display in the activity card
+      const koCity = explorerCities.find(c => c.en === e.place.city)?.ko ?? e.place.city;
+      return {
+        day: e.day,
+        time: e.time,
+        title: e.place.name,
+        location: e.place.nameLocal,
+        locationPlaceId: undefined,
+        rating: e.place.rating,
+        cost: e.place.currency === 'KRW' ? e.place.costKRW : e.place.costLocal,
+        currency: e.place.currency,
+        type: (e.place.type === 'food' ? 'food'
+          : e.place.type === 'transport' ? 'transport'
+          : e.place.type === 'accommodation' ? 'accommodation'
+          : 'activity') as Activity['type'],
+        notes: e.place.description ?? '',
+        city: koCity && koCity !== '전국' ? koCity : undefined,
+        menuItems: e.place.menuItems,
+        transportMode: e.place.transportPreset
+          ? e.place.transportPreset.mode + (e.place.transportPreset.route ? ` — ${e.place.transportPreset.route}` : '')
+          : undefined,
+      };
+    });
+    onConfirm(acts);
+  };
+
+  const catButtons: { key: 'all' | RecommendedPlace['type']; label: string }[] = [
+    { key: 'all', label: '전체' },
+    { key: 'food', label: '🍽️ 맛집' },
+    { key: 'activity', label: '🎯 관광' },
+    { key: 'transport', label: '🚌 교통' },
+    { key: 'accommodation', label: '🏨 숙박' },
+  ];
+
+  const catIcon = (type: RecommendedPlace['type']) =>
+    type === 'food' ? '🍽️' : type === 'activity' ? '🎯' : type === 'transport' ? '🚌' : '🏨';
+
+  return (
+    <div className="bg-slate-800 rounded-2xl border border-violet-700/40 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/60">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-slate-200">🛍️ 장소 탐색</span>
+          <span className="text-[10px] text-violet-400 bg-violet-900/30 px-1.5 py-0.5 rounded-full border border-violet-800/50">Google</span>
+          {cart.length > 0 && (
+            <button
+              onClick={() => setShowCart(v => !v)}
+              className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${showCart ? 'bg-violet-700/40 border-violet-600 text-violet-300' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
+            >🛒 {cart.length}개 선택됨</button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && (
+            <button
+              onClick={handleConfirm}
+              className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+            >일정에 추가</button>
+          )}
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-sm">✕</button>
+        </div>
+      </div>
+
+      {/* Cart panel */}
+      {showCart && cart.length > 0 && (
+        <div className="border-b border-slate-700/60 bg-slate-900/40 px-4 py-3 space-y-2">
+          <p className="text-[11px] text-violet-400 font-medium">선택한 장소 — Day / 시간을 지정해주세요</p>
+          {cart.map((entry, idx) => (
+            <div key={entry.place.id} className="flex items-center gap-2 text-xs">
+              <span className="text-slate-300 flex-1 min-w-0 truncate">{entry.place.name}</span>
+              <select
+                value={entry.day}
+                onChange={e => updateCartEntry(idx, { day: Number(e.target.value) })}
+                className="bg-slate-700 border border-slate-600 rounded-lg px-1.5 py-1 text-xs text-slate-200 focus:outline-none shrink-0"
+              >
+                {Array.from({ length: days }, (_, i) => i + 1).map(d => (
+                  <option key={d} value={d}>Day {d}</option>
+                ))}
+              </select>
+              <input
+                type="time"
+                value={entry.time}
+                onChange={e => updateCartEntry(idx, { time: e.target.value })}
+                className="bg-slate-700 border border-slate-600 rounded-lg px-1.5 py-1 text-xs text-slate-200 focus:outline-none w-24 shrink-0"
+              />
+              <button
+                onClick={() => setCart(prev => prev.filter((_, i) => i !== idx))}
+                className="text-red-500 hover:text-red-400 shrink-0"
+              >✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="px-4 pt-3 pb-2 space-y-2">
+        {explorerCities.length > 1 && (
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => setFilterCityKo('')}
+              className={`px-2.5 py-0.5 text-[11px] rounded-full border transition-all ${!filterCityKo ? 'bg-violet-600 border-violet-500 text-white' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+            >전체</button>
+            {explorerCities.map(city => (
+              <button
+                key={city.ko}
+                onClick={() => setFilterCityKo(city.ko === filterCityKo ? '' : city.ko)}
+                className={`px-2.5 py-0.5 text-[11px] rounded-full border transition-all ${filterCityKo === city.ko ? 'bg-violet-600 border-violet-500 text-white' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+              >{city.ko}</button>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          {catButtons.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilterCat(key)}
+              className={`px-2.5 py-0.5 text-[11px] rounded-full border transition-all ${filterCat === key ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-600 text-slate-400 hover:text-slate-200'}`}
+            >{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Place grid */}
+      <div className="px-4 pb-4 max-h-96 overflow-y-auto">
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="p-3 rounded-xl border border-slate-700/60 bg-slate-800/50 animate-pulse">
+                <div className="h-3 bg-slate-700 rounded mb-2 w-3/4" />
+                <div className="h-2 bg-slate-700/60 rounded mb-3 w-full" />
+                <div className="flex justify-between items-center">
+                  <div className="h-2 bg-slate-700/40 rounded w-1/3" />
+                  <div className="h-6 w-12 bg-slate-700/60 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : places.length === 0 ? (
+          <div className="text-center py-10 text-slate-500 text-xs">
+            <p className="text-xl mb-2">🔍</p>
+            <p>도시를 선택하면 구글에서 추천 장소를 가져와요</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2">
+            {places.map(place => {
+              const added = inCart(place.id);
+              const koCity = explorerCities.find(c => c.en === place.city)?.ko ?? place.city;
+              return (
+                <div
+                  key={place.id}
+                  className={`p-3 rounded-xl border transition-all flex flex-col gap-1.5 ${added ? 'border-violet-600/60 bg-violet-900/20' : 'border-slate-700/60 bg-slate-800/80 hover:border-slate-600'}`}
+                >
+                  <div>
+                    <p className="text-xs font-medium text-slate-200 truncate">{catIcon(place.type)} {place.name}</p>
+                    {koCity && koCity !== filterCityKo && <p className="text-[10px] text-slate-500">{koCity}</p>}
+                  </div>
+                  {place.description && (
+                    <p className="text-[10px] text-slate-500 line-clamp-2">{place.description}</p>
+                  )}
+                  <div className="flex items-end justify-between gap-1 mt-auto">
+                    <div>
+                      {place.rating && <p className="text-[10px] text-amber-400">★ {place.rating}</p>}
+                      <p className="text-[10px] text-indigo-400">
+                        {place.costLocal > 0 ? `${place.currency} ${place.costLocal.toLocaleString()}` : '무료'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => toggleCart(place)}
+                      className={`text-[10px] px-2 py-1 rounded-lg border transition-all shrink-0 ${
+                        added
+                          ? 'bg-violet-700/50 border-violet-600 text-violet-300'
+                          : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-indigo-500'
+                      }`}
+                    >{added ? '✓ 담김' : '+ 담기'}</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -25,8 +25,9 @@ type Mode = 'budget' | 'country' | 'itinerary';
 
 export default function Home() {
   const { lang, setLang, t } = useLang();
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [planeAnim, setPlaneAnim] = useState(false);
 
@@ -48,6 +49,9 @@ export default function Home() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // Reset profile image error state when user changes (re-login)
+  useEffect(() => { setImgError(false); }, [user?.sub]);
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('budget');
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -121,7 +125,7 @@ export default function Home() {
             onClick={handleLogoClick}
             className="flex items-center gap-2.5 group"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 transition-all overflow-hidden">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 transition-all">
               <span
                 className={`text-base inline-block ${planeAnim ? 'plane-logo-clicked' : ''}`}
                 onAnimationEnd={() => setPlaneAnim(false)}
@@ -154,16 +158,30 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            {user ? (
+            {authLoading ? (
+              <div className="w-[90px] h-7 rounded-xl bg-slate-800/80 border border-slate-700/60 animate-pulse" />
+            ) : user ? (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowUserMenu(v => !v)}
-                  className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-indigo-500/50 transition-all"
+                  className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-indigo-500/50 transition-all overflow-hidden"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={user.picture} alt={user.name} className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
-                  <span className="text-xs text-slate-300 hidden sm:block max-w-[80px] truncate">{user.name.split(' ')[0]}</span>
-                  <svg className={`w-3 h-3 text-slate-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {imgError ? (
+                    <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.picture}
+                      alt=""
+                      className="w-6 h-6 rounded-full shrink-0"
+                      referrerPolicy="no-referrer"
+                      onError={() => setImgError(true)}
+                    />
+                  )}
+                  <span className="text-xs text-slate-300 hidden sm:block max-w-[72px] truncate leading-none">{user.name.split(' ')[0]}</span>
+                  <svg className={`w-3 h-3 text-slate-500 shrink-0 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
