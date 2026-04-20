@@ -30,31 +30,124 @@ export interface CommunityPost {
 
 const STORAGE_KEY = 'tripb_community_posts_v1';
 
-export function loadPosts(): CommunityPost[] {
+function loadLocalPosts(): CommunityPost[] {
   if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
   catch { return []; }
 }
-function savePosts(posts: CommunityPost[]) {
+function saveLocalPosts(posts: CommunityPost[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-  try { window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY })); } catch {}
 }
 
-export function useCommunityPosts() {
+type Source = 'server' | 'local' | 'loading';
+
+interface Store {
+  posts: CommunityPost[];
+  source: Source;
+  createPost: (p: CommunityPost) => Promise<void>;
+  deletePost: (id: string, userSub: string) => Promise<void>;
+  toggleLike: (id: string, userSub: string) => Promise<void>;
+  addComment: (id: string, comment: CommunityComment) => Promise<void>;
+}
+
+export function useCommunityPosts(): Store {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [source, setSource] = useState<Source>('loading');
+
+  // Initial fetch: try server → fallback to localStorage
   useEffect(() => {
-    setPosts(loadPosts());
-    const onStorage = (e: StorageEvent) => {
-      if (e.key && e.key !== STORAGE_KEY) return;
-      setPosts(loadPosts());
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/community/posts');
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            const serverPosts = (data.posts ?? []) as CommunityPost[];
+            setPosts(serverPosts);
+            setSource('server');
+            saveLocalPosts(serverPosts); // cache for offline read
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) {
+        setPosts(loadLocalPosts());
+        setSource('local');
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
-  return {
-    posts,
-    setPosts: (next: CommunityPost[]) => { setPosts(next); savePosts(next); },
+
+  // Mutators apply locally first, then sync to server (if available).
+  const applyLocal = (next: CommunityPost[]) => {
+    setPosts(next);
+    saveLocalPosts(next);
   };
+
+  const refetchOrFallback = async () => {
+    try {
+      const res = await fetch('/api/community/posts');
+      if (res.ok) {
+        const data = await res.json();
+        const serverPosts = (data.posts ?? []) as CommunityPost[];
+        setPosts(serverPosts);
+        saveLocalPosts(serverPosts);
+        setSource('server');
+        return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  };
+
+  const createPost = async (p: CommunityPost) => {
+    applyLocal([p, ...posts]);
+    try {
+      const res = await fetch('/api/community/posts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p),
+      });
+      if (res.ok) await refetchOrFallback(); else setSource('local');
+    } catch { setSource('local'); }
+  };
+
+  const deletePost = async (id: string, userSub: string) => {
+    applyLocal(posts.filter(x => x.id !== id));
+    try {
+      const res = await fetch(`/api/community/posts/${id}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userSub }),
+      });
+      if (res.ok) await refetchOrFallback(); else setSource('local');
+    } catch { setSource('local'); }
+  };
+
+  const toggleLike = async (id: string, userSub: string) => {
+    const next = posts.map(p => {
+      if (p.id !== id) return p;
+      const has = p.likes.includes(userSub);
+      return { ...p, likes: has ? p.likes.filter(s => s !== userSub) : [...p.likes, userSub] };
+    });
+    applyLocal(next);
+    try {
+      await fetch(`/api/community/posts/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'toggleLike', userSub }),
+      });
+    } catch { /* offline: local state already updated */ }
+  };
+
+  const addComment = async (id: string, comment: CommunityComment) => {
+    applyLocal(posts.map(p => p.id === id ? { ...p, comments: [...p.comments, comment] } : p));
+    try {
+      await fetch(`/api/community/posts/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'addComment', comment }),
+      });
+    } catch { /* offline: local state already updated */ }
+  };
+
+  return { posts, source, createPost, deletePost, toggleLike, addComment };
 }
 
 function SharedTripCard({ trip, compact }: { trip: Trip; compact?: boolean }) {
@@ -144,7 +237,8 @@ interface Props {
 
 export default function Community({ initialAuthorSub }: Props) {
   const { user } = useAuth();
-  const { posts, setPosts } = useCommunityPosts();
+  const store = useCommunityPosts();
+  const { posts, source } = store;
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [countryFilter, setCountryFilter] = useState<string>('');
@@ -159,25 +253,20 @@ export default function Community({ initialAuthorSub }: Props) {
 
   const selectedPost = selectedId ? posts.find(p => p.id === selectedId) : null;
 
-  const savePost = (p: CommunityPost) => {
-    const idx = posts.findIndex(x => x.id === p.id);
-    const next = idx >= 0 ? posts.map(x => x.id === p.id ? p : x) : [...posts, p];
-    setPosts(next);
+  const savePost = async (p: CommunityPost) => {
+    await store.createPost(p);
   };
 
-  const deletePost = (id: string) => {
+  const deletePost = async (id: string) => {
+    if (!user) return;
     if (!confirm('정말 삭제하시겠습니까?')) return;
-    setPosts(posts.filter(p => p.id !== id));
+    await store.deletePost(id, user.sub);
     if (selectedId === id) { setSelectedId(null); setView('list'); }
   };
 
   const toggleLike = (postId: string) => {
     if (!user) return;
-    setPosts(posts.map(p => {
-      if (p.id !== postId) return p;
-      const has = p.likes.includes(user.sub);
-      return { ...p, likes: has ? p.likes.filter(s => s !== user.sub) : [...p.likes, user.sub] };
-    }));
+    store.toggleLike(postId, user.sub);
   };
 
   const addComment = (postId: string, body: string) => {
@@ -190,7 +279,7 @@ export default function Community({ initialAuthorSub }: Props) {
       body: body.trim(),
       createdAt: new Date().toISOString(),
     };
-    setPosts(posts.map(p => p.id === postId ? { ...p, comments: [...p.comments, c] } : p));
+    store.addComment(postId, c);
   };
 
   if (view === 'detail' && selectedPost) {
@@ -220,9 +309,21 @@ export default function Community({ initialAuthorSub }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-100">💬 여행 커뮤니티</h2>
-          <p className="text-xs text-slate-500 mt-0.5">다른 여행자의 일정·후기를 살펴보고 이야기를 나눠보세요</p>
+        <div className="flex items-start gap-2">
+          <div>
+            <h2 className="text-base font-semibold text-slate-100">💬 여행 커뮤니티</h2>
+            <p className="text-xs text-slate-500 mt-0.5">다른 여행자의 일정·후기를 살펴보고 이야기를 나눠보세요</p>
+          </div>
+          {source === 'server' && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/30 border border-emerald-700/50 text-emerald-400" title="Vercel KV 연결됨">
+              🟢 서버
+            </span>
+          )}
+          {source === 'local' && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/30 border border-amber-700/50 text-amber-400" title="서버 미설정 — 브라우저 내에만 저장됨">
+              🟡 로컬
+            </span>
+          )}
         </div>
         {user && (
           <button
@@ -539,9 +640,6 @@ function PostForm({
         <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors">등록</button>
       </div>
 
-      <p className="text-[10px] text-slate-600 pt-1">
-        * 현재 커뮤니티는 브라우저 내 저장으로 프리뷰 중입니다. 공유 서버 연동 예정.
-      </p>
     </div>
   );
 }
