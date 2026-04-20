@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     if (!res.ok) throw new Error('Places API error');
 
     const data = await res.json();
-    const places = (data.results || []).slice(0, 6).map((p: Record<string, unknown>) => ({
+    const places = (data.results || []).slice(0, 12).map((p: Record<string, unknown>) => ({
       placeId: p.place_id,
       name: p.name,
       address: (p.formatted_address as string)?.replace(/^(.+?,\s*.+?),.*$/, '$1') ?? '',

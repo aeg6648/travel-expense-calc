@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const res = await fetch(
-      `https://openapi.naver.com/v1/search/blog?query=${encodeURIComponent(query)}&display=8&sort=sim`,
+      `https://openapi.naver.com/v1/search/blog?query=${encodeURIComponent(query)}&display=16&sort=sim`,
       {
         headers: {
           'X-Naver-Client-Id': clientId,

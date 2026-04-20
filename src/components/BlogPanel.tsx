@@ -23,6 +23,11 @@ interface GPlace {
   photoRef?: string | null;
 }
 
+interface MentionedPlace {
+  name: string;
+  count: number;
+}
+
 interface Props {
   country: Country;
   duration: number;
@@ -52,6 +57,8 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
   const [activeStyle, setActiveStyle] = useState<DerivedStyle>('standard');
   const [gPlaces, setGPlaces] = useState<GPlace[]>([]);
   const [gLoading, setGLoading] = useState(false);
+  const [mentioned, setMentioned] = useState<MentionedPlace[]>([]);
+  const [mLoading, setMLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -76,6 +83,18 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
       .then(data => setGPlaces(data.places || []))
       .catch(() => {})
       .finally(() => setGLoading(false));
+  }, [country.nameKR, selectedCity]);
+
+  useEffect(() => {
+    setMLoading(true);
+    setMentioned([]);
+    const params = new URLSearchParams({ country: country.nameKR });
+    if (selectedCity) params.set('city', selectedCity);
+    fetch(`/api/places/mentioned?${params.toString()}`)
+      .then(r => r.json())
+      .then(data => setMentioned(data.places || []))
+      .catch(() => {})
+      .finally(() => setMLoading(false));
   }, [country.nameKR, selectedCity]);
 
   const filteredBlogData = selectedCity
@@ -162,6 +181,45 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {(mLoading || mentioned.length > 0) && (
+        <div className="space-y-2 pt-2 border-t border-slate-700/50">
+          <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full bg-emerald-500/80" />
+            블로그에서 자주 언급된 장소
+          </p>
+          {mLoading && (
+            <div className="animate-pulse space-y-1.5 p-3 rounded-xl bg-slate-700/30">
+              <div className="h-3 bg-slate-700 rounded w-2/3" />
+              <div className="h-2 bg-slate-700/50 rounded w-1/2" />
+            </div>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {mentioned.map(place => {
+              const maxCount = mentioned[0]?.count ?? 1;
+              const intensity = Math.max(0.4, Math.min(1, place.count / maxCount));
+              const q = encodeURIComponent(`${place.name} ${selectedCity || country.nameKR}`);
+              return (
+                <a
+                  key={place.name}
+                  href={`https://www.google.com/maps/search/${q}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition-all hover:scale-[1.04]"
+                  style={{
+                    backgroundColor: `rgba(16,185,129,${0.08 + 0.12 * intensity})`,
+                    borderColor: `rgba(16,185,129,${0.25 + 0.25 * intensity})`,
+                    color: `rgba(110,231,183,${0.75 + 0.25 * intensity})`,
+                  }}
+                >
+                  <span className="font-medium">{place.name}</span>
+                  <span className="text-[10px] opacity-70">×{place.count}</span>
+                </a>
+              );
+            })}
+          </div>
         </div>
       )}
 

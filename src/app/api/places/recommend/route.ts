@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
     if (!p.place_id || seen.has(p.place_id)) return false;
     seen.add(p.place_id);
     return true;
-  }).slice(0, 30).map((p: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  }).slice(0, 60).map((p: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
     const types: string[] = p.types ?? [];
     const type = inferType(types);
     const priceLevel: number | undefined = p.price_level;
