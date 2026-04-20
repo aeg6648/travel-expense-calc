@@ -183,10 +183,21 @@ export default function Home() {
                       <span className="text-base">📅</span>
                       <span>{t.modeItinerary}</span>
                     </button>
+                    {/* 문의하기 */}
+                    <a
+                      href={`mailto:snusmh@gmail.com?subject=트립비 문의&body=안녕하세요, 트립비 관련 문의드립니다.%0A%0A이름: ${user.name}%0A이메일: ${user.email}%0A%0A문의 내용:%0A`}
+                      onClick={() => setShowUserMenu(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-400 hover:bg-slate-700 hover:text-slate-100 transition-colors border-t border-slate-700/60"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                      </svg>
+                      <span>문의하기</span>
+                    </a>
                     {/* 로그아웃 */}
                     <button
                       onClick={() => { setShowUserMenu(false); signOut(); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-colors text-left border-t border-slate-700/60"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-colors text-left"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
