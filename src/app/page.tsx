@@ -18,9 +18,10 @@ import FlightCard from '@/components/FlightCard';
 import BlogPanel from '@/components/BlogPanel';
 import BudgetFinder from '@/components/BudgetFinder';
 import ItineraryManager from '@/components/ItineraryManager';
+import Community from '@/components/Community';
 import AdBanner from '@/components/AdBanner';
 
-type Mode = 'budget' | 'country' | 'itinerary';
+type Mode = 'budget' | 'country' | 'itinerary' | 'community';
 
 export default function Home() {
   const { t } = useLang();
@@ -53,6 +54,7 @@ export default function Home() {
   useEffect(() => { setImgError(false); }, [user?.sub]);
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('itinerary');
+  const [communityAuthorFilter, setCommunityAuthorFilter] = useState<string | undefined>(undefined);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [style, setStyle] = useState<TravelStyle>('standard');
@@ -103,6 +105,13 @@ export default function Home() {
   const handleModeChange = (m: Mode) => {
     setMode(m);
     if (m !== 'country') setSelectedCode(null);
+  };
+
+  // Called from the visible tab buttons (not from profile shortcuts) — resets
+  // any author filter so the community tab always opens on the shared feed.
+  const handleTabClick = (m: Mode) => {
+    setCommunityAuthorFilter(undefined);
+    handleModeChange(m);
   };
 
   return (
@@ -162,11 +171,19 @@ export default function Home() {
                     </div>
                     {/* 내 여행 일정 */}
                     <button
-                      onClick={() => { setShowUserMenu(false); handleModeChange('itinerary'); }}
+                      onClick={() => { setShowUserMenu(false); setCommunityAuthorFilter(undefined); handleModeChange('itinerary'); }}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors text-left"
                     >
                       <span className="text-base">📅</span>
                       <span>{t.modeItinerary}</span>
+                    </button>
+                    {/* 내가 쓴 글 */}
+                    <button
+                      onClick={() => { setShowUserMenu(false); setCommunityAuthorFilter(user.sub); handleModeChange('community'); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors text-left"
+                    >
+                      <span className="text-base">📝</span>
+                      <span>내가 쓴 글</span>
                     </button>
                     {/* 문의하기 */}
                     <a
@@ -215,29 +232,50 @@ export default function Home() {
               {t.heroSubtitle}
             </p>
 
-            {/* ── BIG mode tabs ── */}
+            {/* ── Itinerary (hero) tab ── */}
+            <button
+              onClick={() => handleTabClick('itinerary')}
+              className={`relative w-full max-w-xl mx-auto flex items-center justify-center gap-3 py-5 px-6 rounded-2xl font-bold transition-all border-2 mb-3 ${
+                mode === 'itinerary'
+                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-xl shadow-indigo-900/50'
+                  : 'bg-gradient-to-br from-amber-600/20 via-pink-600/15 to-indigo-600/20 border-amber-500/60 text-amber-50 hover:from-amber-600/30 hover:to-indigo-600/30 hover:border-amber-400 shadow-lg shadow-amber-900/20'
+              }`}
+            >
+              {mode !== 'itinerary' && (
+                <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 text-[10px] font-bold text-white shadow-md shadow-amber-900/40 animate-pulse">
+                  NEW
+                </span>
+              )}
+              <span className="text-2xl">📅</span>
+              <span className="text-base">{t.modeItinerary}</span>
+              <span className="hidden sm:inline text-xs font-normal text-amber-200/80">· 일정·예산·동선 한번에</span>
+            </button>
+
+            {/* ── Secondary tabs ── */}
             <div className="flex gap-2 justify-center mb-0">
               {([
-                { id: 'itinerary', icon: '📅', label: t.modeItinerary, featured: true },
-                { id: 'budget',    icon: '💰', label: t.modeBudget },
-                { id: 'country',   icon: '🗺️', label: t.modeCountry },
-              ] as { id: Mode; icon: string; label: string; featured?: boolean }[]).map(({ id, icon, label, featured }) => (
+                { id: 'budget',    icon: '💰', label: t.modeBudget, hint: '예산을 입력하면 갈 수 있는 나라를 자동으로 찾아줍니다.' },
+                { id: 'country',   icon: '🗺️', label: t.modeCountry, hint: '가고 싶은 나라를 고르면 실제 블로그 지출·항공·숙박 경비를 보여줍니다.' },
+                { id: 'community', icon: '💬', label: '커뮤니티', hint: '다른 여행자의 일정·후기를 보고 댓글로 이야기를 나눠보세요.' },
+              ] as { id: Mode; icon: string; label: string; hint: string }[]).map(({ id, icon, label, hint }) => (
                 <button
                   key={id}
-                  onClick={() => handleModeChange(id)}
-                  className={`relative flex-1 max-w-[200px] flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-4 rounded-2xl text-sm font-semibold transition-all border ${
+                  onClick={() => handleTabClick(id)}
+                  className={`relative flex-1 max-w-[200px] flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-sm font-medium transition-all border ${
                     mode === id
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/50'
-                      : featured
-                        ? 'bg-gradient-to-br from-amber-600/15 to-pink-600/15 border-amber-500/50 text-amber-100 hover:from-amber-600/25 hover:to-pink-600/25 hover:border-amber-400/70'
-                        : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600 hover:bg-slate-700/60'
+                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-900/40'
+                      : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600 hover:bg-slate-700/60'
                   }`}
                 >
-                  {featured && mode !== id && (
-                    <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 text-[9px] font-bold text-white shadow-md shadow-amber-900/40 animate-pulse">
-                      NEW
-                    </span>
-                  )}
+                  <span
+                    role="img"
+                    aria-label="정보"
+                    title={hint}
+                    onClick={(e) => { e.stopPropagation(); alert(hint); }}
+                    className="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-600/40 text-slate-300/70 text-[9px] font-bold flex items-center justify-center hover:bg-slate-500/70 hover:text-slate-100 transition-colors cursor-help"
+                  >
+                    i
+                  </span>
                   <span className="text-base sm:text-sm">{icon}</span>
                   <span className="text-[11px] sm:text-sm">{label}</span>
                 </button>
@@ -516,6 +554,11 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Community mode */}
+          {mode === 'community' && (
+            <Community key={communityAuthorFilter ?? 'all'} initialAuthorSub={communityAuthorFilter} />
           )}
 
           {/* Itinerary mode */}
