@@ -30,8 +30,16 @@ export type TripTheme =
   | { kind: 'photo'; url: string }
   | { kind: 'color'; from: string; to: string };
 
+export interface PackingItem {
+  id: string;
+  label: string;
+  checked: boolean;
+  category?: string; // '필수' · '의류' · '전자기기' · '세면' · '기타'
+}
+
 export interface Trip {
   theme?: TripTheme;
+  packingList?: PackingItem[];
   id: string;
   name: string;
   countryCode: string;
@@ -201,6 +209,64 @@ export const TRIP_COLOR_PRESETS: { label: string; from: string; to: string }[] =
 function tripDays(trip: Trip): number {
   if (!trip.startDate || !trip.endDate) return 1;
   return Math.max(1, Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000));
+}
+
+// Countdown state for the trip detail header.
+// Returns null when the trip has no dates yet.
+function tripCountdown(trip: Trip): { label: string; color: string } | null {
+  if (!trip.startDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(trip.startDate); start.setHours(0, 0, 0, 0);
+  const end = trip.endDate ? new Date(trip.endDate) : start;
+  end.setHours(0, 0, 0, 0);
+  const oneDay = 86400000;
+  const diffToStart = Math.round((start.getTime() - today.getTime()) / oneDay);
+  if (diffToStart > 0) return { label: `D-${diffToStart}`, color: 'bg-indigo-500/80' };
+  if (today.getTime() > end.getTime()) {
+    const daysAgo = Math.round((today.getTime() - end.getTime()) / oneDay);
+    return { label: `완료 · ${daysAgo}일 전`, color: 'bg-slate-500/80' };
+  }
+  const dayNum = Math.round((today.getTime() - start.getTime()) / oneDay) + 1;
+  const total = Math.round((end.getTime() - start.getTime()) / oneDay) + 1;
+  return { label: `여행 중 · Day ${dayNum}/${total}`, color: 'bg-emerald-500/90' };
+}
+
+// Default packing list tailored to the trip — starts with essentials
+// for any international trip, adds weather-agnostic basics, then country
+// specific touches (e.g., 전압 어댑터 hint for EU/UK).
+const COUNTRY_POWER_NOTE: Record<string, string> = {
+  GB: 'UK 3구 어댑터', IE: 'UK 3구 어댑터',
+  US: 'US A타입 어댑터', CA: 'US A타입 어댑터', MX: 'US A타입 어댑터',
+  JP: '일본 A타입 어댑터 (110V)',
+  CH: 'Type J 어댑터', IT: '일부 Type L 어댑터', ES: '유럽 C/F 어댑터',
+  AU: 'Type I 어댑터', NZ: 'Type I 어댑터',
+  AE: 'UK 3구 / Type G 어댑터',
+};
+
+export function defaultPackingList(countryCode: string): PackingItem[] {
+  const id = () => Math.random().toString(36).slice(2, 10);
+  const base: { label: string; category: string }[] = [
+    { label: '여권 (유효기간 6개월↑)', category: '필수' },
+    { label: '항공권/e-티켓', category: '필수' },
+    { label: '해외 결제 가능한 카드', category: '필수' },
+    { label: '트래블 보험 가입 확인', category: '필수' },
+    { label: '속옷/양말 × 일수', category: '의류' },
+    { label: '상의/하의 번갈아 입을 세트', category: '의류' },
+    { label: '외출용 가벼운 아우터', category: '의류' },
+    { label: '편한 운동화', category: '의류' },
+    { label: '휴대폰 + eSIM/로밍 셋업', category: '전자기기' },
+    { label: '보조배터리', category: '전자기기' },
+    { label: '충전기 케이블 (C/Lightning)', category: '전자기기' },
+    { label: '칫솔/치약', category: '세면' },
+    { label: '바디워시/샴푸 샘플', category: '세면' },
+    { label: '자외선 차단제', category: '세면' },
+    { label: '상비약 (해열·소화·반창고)', category: '기타' },
+    { label: '접이식 우산/레인커버', category: '기타' },
+  ];
+  const adapter = COUNTRY_POWER_NOTE[countryCode];
+  if (adapter) base.push({ label: `🔌 ${adapter}`, category: '전자기기' });
+  return base.map(b => ({ id: id(), label: b.label, category: b.category, checked: false }));
 }
 
 // Manual drag order takes precedence; fall back to time, then to insertion order.
@@ -445,6 +511,7 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
     const days = tripDays(selectedTrip);
     const country = COUNTRIES.find(c => c.code === selectedTrip.countryCode);
     const totalCost = sumInCurrency(selectedTrip.activities, selectedTrip.currency, allRates);
+    const countdown = tripCountdown(selectedTrip);
 
     return (
       <div className="space-y-4">
@@ -469,6 +536,11 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
           >
             🎨 배경
           </button>
+          {countdown && (
+            <span className={`absolute top-3 left-3 text-[11px] font-bold px-3 py-1 rounded-full text-white shadow-lg shadow-black/30 ${countdown.color}`}>
+              {countdown.label}
+            </span>
+          )}
           <div className="relative flex items-center gap-3 mb-3">
             <span className="text-3xl drop-shadow-md">{country?.flag ?? '🌍'}</span>
             <div>
@@ -515,6 +587,11 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
             onClose={() => setShowThemer(false)}
           />
         )}
+
+        <PackingListPanel
+          trip={selectedTrip}
+          onChange={(next) => updateTrip({ ...selectedTrip, packingList: next })}
+        />
 
         {/* Activity header */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1824,6 +1901,120 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = 'w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors';
 const inputSmCls = 'w-full bg-slate-700/70 border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors';
+
+// ── Packing checklist (collapsible, persisted on Trip) ─────────────
+function PackingListPanel({ trip, onChange }: { trip: Trip; onChange: (next: PackingItem[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const list = trip.packingList ?? [];
+  const checked = list.filter(i => i.checked).length;
+
+  const ensureList = () => {
+    if (list.length === 0) {
+      onChange(defaultPackingList(trip.countryCode));
+    }
+  };
+
+  const toggle = (id: string) => {
+    onChange(list.map(i => i.id === id ? { ...i, checked: !i.checked } : i));
+  };
+
+  const add = () => {
+    if (!newLabel.trim()) return;
+    onChange([...list, { id: Math.random().toString(36).slice(2, 10), label: newLabel.trim(), checked: false, category: '기타' }]);
+    setNewLabel('');
+  };
+
+  const remove = (id: string) => {
+    onChange(list.filter(i => i.id !== id));
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-700/60 bg-slate-800 overflow-hidden">
+      <button
+        onClick={() => { setOpen(v => !v); if (!open) ensureList(); }}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-700/40 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🎒</span>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-slate-100">짐 체크리스트</p>
+            <p className="text-[11px] text-slate-500">
+              {list.length > 0 ? `${checked} / ${list.length} 완료` : '기본 리스트로 시작하기'}
+            </p>
+          </div>
+        </div>
+        <span className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-4 pt-1 space-y-3">
+          {list.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">추천 기본 리스트를 불러오는 중…</p>
+          ) : (
+            (() => {
+              const categories = Array.from(new Set(list.map(i => i.category ?? '기타')));
+              return (
+                <>
+                  {categories.map(cat => (
+                    <div key={cat}>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{cat}</p>
+                      <ul className="space-y-1">
+                        {list.filter(i => (i.category ?? '기타') === cat).map(item => (
+                          <li key={item.id} className="flex items-center gap-2 group">
+                            <label className="flex-1 flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.checked}
+                                onChange={() => toggle(item.id)}
+                                className="rounded border-slate-600 bg-slate-700 focus:ring-indigo-500"
+                              />
+                              <span className={`text-sm ${item.checked ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                {item.label}
+                              </span>
+                            </label>
+                            <button
+                              onClick={() => remove(item.id)}
+                              className="opacity-0 group-hover:opacity-100 text-[10px] text-slate-500 hover:text-red-400 transition-all"
+                            >✕</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </>
+              );
+            })()
+          )}
+
+          <div className="flex gap-2 pt-2 border-t border-slate-700/60">
+            <input
+              type="text"
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') add(); }}
+              placeholder="새 항목 추가 (예: 보조 배터리)"
+              className="flex-1 bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              onClick={add}
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm transition-colors"
+            >추가</button>
+          </div>
+
+          {list.length > 0 && (
+            <button
+              onClick={() => onChange([])}
+              className="text-[11px] text-slate-500 hover:text-slate-300 underline-offset-2 hover:underline"
+            >
+              리스트 초기화
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Trip theme editor (background photo or gradient) ───────────────
 function TripThemer({

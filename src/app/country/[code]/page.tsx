@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getCountryByCode } from '@/lib/travel-data';
+import ShareButton from '@/components/ShareButton';
 
 type PageProps = { params: Promise<{ code: string }> };
 
@@ -313,15 +314,23 @@ export default async function CountryPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* CTA */}
-        <div className="text-center pt-4 pb-8">
-          <p className="text-slate-400 text-sm mb-4">더 정확한 경비를 계산해보세요</p>
-          <a
-            href="/"
-            className="inline-block px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-medium transition-colors shadow-lg shadow-indigo-900/40"
-          >
-            트립비에서 상세 계산하기 →
-          </a>
+        {/* CTA + 공유 */}
+        <div className="text-center pt-4 pb-8 space-y-4">
+          <p className="text-slate-400 text-sm">더 정확한 경비를 계산해보세요</p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="/"
+              className="inline-block px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-medium transition-colors shadow-lg shadow-indigo-900/40"
+            >
+              트립비에서 상세 계산하기 →
+            </a>
+            <ShareButton
+              title={`${country.nameKR} 여행 경비 가이드`}
+              text={`${country.nameKR} ${nights}박 기준 경비 ${bCosts.avg.toLocaleString()}원~${lCosts.avg.toLocaleString()}원. 트립비에서 계산해봤어요`}
+              url={countryUrl}
+              className="!bg-slate-800 !hover:bg-slate-700 border border-slate-600"
+            />
+          </div>
         </div>
       </div>
     </div>

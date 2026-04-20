@@ -10,6 +10,36 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://www.tripbudget.my"/>
   </url>
   <url>
+    <loc>https://www.tripbudget.my/guides</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.tripbudget.my/guides/20s-first-overseas-travel-budget</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.tripbudget.my/guides/japan-travel-cost-2026</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.tripbudget.my/guides/southeast-asia-budget-ranking</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.tripbudget.my/guides/peak-season-travel-cost</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.tripbudget.my/privacy</loc>
     <lastmod>2026-04-20</lastmod>
     <changefreq>monthly</changefreq>
