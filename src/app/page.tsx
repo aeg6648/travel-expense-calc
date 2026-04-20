@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import TripBLogo from '@/components/TripBLogo';
 import HeroBackground from '@/components/HeroBackground';
+import CelebrityPanel from '@/components/CelebrityPanel';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -316,8 +317,8 @@ export default function Home() {
             {/* ── Secondary tabs ── */}
             <div className="flex gap-2 justify-center mb-0">
               {([
-                { id: 'budget',    icon: '💰', label: t.modeBudget, hint: '예산을 입력하면 갈 수 있는 나라를 자동으로 찾아줍니다.' },
                 { id: 'country',   icon: '🗺️', label: t.modeCountry, hint: '가고 싶은 나라를 고르면 실제 블로그 지출·항공·숙박 경비를 보여줍니다.' },
+                { id: 'budget',    icon: '💰', label: t.modeBudget, hint: '예산을 입력하면 갈 수 있는 나라를 자동으로 찾아줍니다.' },
                 { id: 'community', icon: '💬', label: '커뮤니티', hint: '다른 여행자의 일정·후기를 보고 댓글로 이야기를 나눠보세요.' },
               ] as { id: Mode; icon: string; label: string; hint: string }[]).map(({ id, icon, label, hint }) => (
                 <button
@@ -356,8 +357,13 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Content ── */}
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* ── Content (with celebrity sidebar on wide screens) ── */}
+        <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-6">
+          <aside className="hidden xl:block sticky top-24 self-start">
+            <CelebrityPanel />
+          </aside>
+
+          <div>
 
           {/* Budget mode */}
           {mode === 'budget' && (
@@ -682,6 +688,7 @@ export default function Home() {
               </div>
             )
           )}
+          </div>
         </div>
 
         {/* SEO text - bottom */}

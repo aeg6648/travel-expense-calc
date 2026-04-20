@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { COUNTRIES } from '@/lib/travel-data';
 import { loadTrips, type Trip, type Activity } from '@/components/ItineraryManager';
+import { isAdminEmail } from '@/lib/admin';
 
 export interface CommunityComment {
   id: string;
   authorSub: string;
-  authorName: string;
+  authorName: string;      // display name (real or nickname)
   authorPicture?: string;
+  anonymous?: boolean;     // true when the user chose to post under a nickname
   body: string;
   createdAt: string;
 }
@@ -17,8 +19,9 @@ export interface CommunityComment {
 export interface CommunityPost {
   id: string;
   authorSub: string;
-  authorName: string;
+  authorName: string;      // display name (real or nickname)
   authorPicture?: string;
+  anonymous?: boolean;     // true when posted under a nickname
   countryCode?: string;
   title: string;
   body: string;
@@ -239,6 +242,7 @@ export default function Community({ initialAuthorSub }: Props) {
   const { user } = useAuth();
   const store = useCommunityPosts();
   const { posts, source } = store;
+  const isAdmin = isAdminEmail(user?.email);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [countryFilter, setCountryFilter] = useState<string>('');
@@ -260,7 +264,15 @@ export default function Community({ initialAuthorSub }: Props) {
   const deletePost = async (id: string) => {
     if (!user) return;
     if (!confirm('정말 삭제하시겠습니까?')) return;
-    await store.deletePost(id, user.sub);
+    // Admins bypass authorSub check on the server by passing authorSub of
+    // the post itself. (Server currently only blocks mismatched userSub —
+    // upgrade once a real ID-token check lands.)
+    let deleteAs = user.sub;
+    if (isAdmin) {
+      const target = posts.find(p => p.id === id);
+      if (target) deleteAs = target.authorSub;
+    }
+    await store.deletePost(id, deleteAs);
     if (selectedId === id) { setSelectedId(null); setView('list'); }
   };
 
@@ -269,13 +281,19 @@ export default function Community({ initialAuthorSub }: Props) {
     store.toggleLike(postId, user.sub);
   };
 
-  const addComment = (postId: string, body: string) => {
+  const addComment = (postId: string, body: string, asAnonymous: boolean, nick: string) => {
     if (!user || !body.trim()) return;
+    const anon = asAnonymous;
+    const displayName = anon ? (nick.trim() || '익명의 여행자') : user.name;
+    if (anon && nick.trim()) {
+      try { localStorage.setItem('tripb_community_nickname_v1', nick.trim()); } catch { /* ignore */ }
+    }
     const c: CommunityComment = {
       id: crypto.randomUUID(),
       authorSub: user.sub,
-      authorName: user.name,
-      authorPicture: user.picture,
+      authorName: displayName,
+      authorPicture: anon ? undefined : user.picture,
+      anonymous: anon,
       body: body.trim(),
       createdAt: new Date().toISOString(),
     };
@@ -287,9 +305,10 @@ export default function Community({ initialAuthorSub }: Props) {
       <PostDetail
         post={selectedPost}
         currentUserSub={user?.sub}
+        isAdmin={isAdmin}
         onBack={() => { setSelectedId(null); setView('list'); }}
         onToggleLike={() => toggleLike(selectedPost.id)}
-        onAddComment={(body) => addComment(selectedPost.id, body)}
+        onAddComment={(body, anon, nick) => addComment(selectedPost.id, body, anon, nick)}
         onDelete={() => deletePost(selectedPost.id)}
       />
     );
@@ -299,7 +318,7 @@ export default function Community({ initialAuthorSub }: Props) {
     if (!user) return null;
     return (
       <PostForm
-        user={user}
+        user={{ sub: user.sub, name: user.name, picture: user.picture }}
         onSave={(p) => { savePost(p); setView('list'); }}
         onCancel={() => setView('list')}
       />
@@ -322,6 +341,11 @@ export default function Community({ initialAuthorSub }: Props) {
           {source === 'local' && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/30 border border-amber-700/50 text-amber-400" title="서버 미설정 — 브라우저 내에만 저장됨">
               🟡 로컬
+            </span>
+          )}
+          {isAdmin && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-900/40 border border-indigo-500/60 text-indigo-200" title="관리자 계정">
+              🛡️ 관리자
             </span>
           )}
         </div>
@@ -408,27 +432,34 @@ export default function Community({ initialAuthorSub }: Props) {
 }
 
 function PostDetail({
-  post, currentUserSub, onBack, onToggleLike, onAddComment, onDelete,
+  post, currentUserSub, isAdmin, onBack, onToggleLike, onAddComment, onDelete,
 }: {
   post: CommunityPost;
   currentUserSub?: string;
+  isAdmin?: boolean;
   onBack: () => void;
   onToggleLike: () => void;
-  onAddComment: (body: string) => void;
+  onAddComment: (body: string, anonymous: boolean, nickname: string) => void;
   onDelete: () => void;
 }) {
   const [comment, setComment] = useState('');
+  const [commentAnon, setCommentAnon] = useState(false);
+  const [commentNick, setCommentNick] = useState('');
+  useEffect(() => {
+    try { setCommentNick(localStorage.getItem('tripb_community_nickname_v1') ?? ''); } catch { /* ignore */ }
+  }, []);
   const country = COUNTRIES.find(c => c.code === post.countryCode);
   const liked = currentUserSub ? post.likes.includes(currentUserSub) : false;
   const mine = currentUserSub === post.authorSub;
+  const canDelete = mine || isAdmin;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="text-slate-400 hover:text-slate-200 text-sm transition-colors">← 목록</button>
-        {mine && (
+        {canDelete && (
           <button onClick={onDelete} className="text-xs text-red-400 hover:text-red-300 px-2.5 py-1 rounded-lg border border-red-800/50 hover:bg-red-900/20 transition-all">
-            삭제
+            {!mine && isAdmin ? '🛡️ 관리자 삭제' : '삭제'}
           </button>
         )}
       </div>
@@ -477,19 +508,41 @@ function PostDetail({
       <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/60 space-y-3">
         <h3 className="text-sm font-semibold text-slate-200">댓글</h3>
         {currentUserSub ? (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && comment.trim()) { onAddComment(comment); setComment(''); } }}
-              placeholder="댓글을 남겨보세요"
-              className="flex-1 bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
-            <button
-              onClick={() => { if (comment.trim()) { onAddComment(comment); setComment(''); } }}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm transition-colors"
-            >등록</button>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && comment.trim()) { onAddComment(comment, commentAnon, commentNick); setComment(''); } }}
+                placeholder="댓글을 남겨보세요"
+                className="flex-1 bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                onClick={() => { if (comment.trim()) { onAddComment(comment, commentAnon, commentNick); setComment(''); } }}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm transition-colors"
+              >등록</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={commentAnon}
+                  onChange={e => setCommentAnon(e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-700 focus:ring-indigo-500 w-3 h-3"
+                />
+                🎭 닉네임으로
+              </label>
+              {commentAnon && (
+                <input
+                  type="text"
+                  value={commentNick}
+                  onChange={e => setCommentNick(e.target.value.slice(0, 20))}
+                  placeholder="닉네임"
+                  className="flex-1 bg-slate-800/80 border border-slate-600 rounded-lg px-2 py-1 text-[11px] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              )}
+            </div>
           </div>
         ) : (
           <p className="text-xs text-slate-500">로그인 후 댓글을 남길 수 있어요.</p>
@@ -525,6 +578,8 @@ function PostDetail({
   );
 }
 
+const NICK_KEY = 'tripb_community_nickname_v1';
+
 function PostForm({
   user, onSave, onCancel,
 }: {
@@ -537,8 +592,13 @@ function PostForm({
   const [countryCode, setCountryCode] = useState('');
   const [myTrips, setMyTrips] = useState<Trip[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
+  const [anonymous, setAnonymous] = useState(false);
+  const [nickname, setNickname] = useState('');
 
-  useEffect(() => { setMyTrips(loadTrips(user.sub)); }, [user.sub]);
+  useEffect(() => {
+    setMyTrips(loadTrips(user.sub));
+    try { setNickname(localStorage.getItem(NICK_KEY) ?? ''); } catch { /* ignore */ }
+  }, [user.sub]);
 
   const selectedTrip = myTrips.find(t => t.id === selectedTripId);
 
@@ -549,11 +609,16 @@ function PostForm({
 
   const handleSave = () => {
     if (!title.trim() || !body.trim()) return;
+    const finalName = anonymous ? (nickname.trim() || '익명의 여행자') : user.name;
+    if (anonymous) {
+      try { localStorage.setItem(NICK_KEY, nickname.trim()); } catch { /* ignore */ }
+    }
     onSave({
       id: crypto.randomUUID(),
       authorSub: user.sub,
-      authorName: user.name,
-      authorPicture: user.picture,
+      authorName: finalName,
+      authorPicture: anonymous ? undefined : user.picture,
+      anonymous,
       countryCode: countryCode || undefined,
       title: title.trim(),
       body: body.trim(),
@@ -622,6 +687,32 @@ function PostForm({
           placeholder="예) 2박3일 도쿄 다녀왔어요"
           className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
         />
+      </div>
+
+      <div className="rounded-xl border border-slate-700/60 bg-slate-700/20 px-3 py-2.5">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={anonymous}
+            onChange={e => setAnonymous(e.target.checked)}
+            className="rounded border-slate-600 bg-slate-700 focus:ring-indigo-500"
+          />
+          <span className="text-xs text-slate-300">🎭 닉네임으로 익명 글쓰기</span>
+        </label>
+        {anonymous && (
+          <input
+            type="text"
+            value={nickname}
+            onChange={e => setNickname(e.target.value.slice(0, 20))}
+            placeholder="예) 방콕러버, 서울탈출러 (최대 20자)"
+            className="mt-2 w-full bg-slate-800/80 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+          />
+        )}
+        <p className="text-[10px] text-slate-500 mt-1.5">
+          {anonymous
+            ? '실명과 프로필 사진 대신 닉네임으로 글이 올라가요.'
+            : `지금은 ${user.name}님 이름으로 올라갑니다.`}
+        </p>
       </div>
 
       <div>

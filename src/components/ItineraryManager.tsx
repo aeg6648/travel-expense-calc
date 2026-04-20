@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { COUNTRIES } from '@/lib/travel-data';
 import type { RecommendedPlace } from '@/lib/recommended-places';
 import { useLang } from '@/context/LangContext';
+import { getCountryPhoto, fallbackGradient } from '@/lib/country-photos';
 
 export interface Activity {
   id: string;
@@ -25,7 +26,12 @@ export interface Activity {
   lng?: number;
 }
 
+export type TripTheme =
+  | { kind: 'photo'; url: string }
+  | { kind: 'color'; from: string; to: string };
+
 export interface Trip {
+  theme?: TripTheme;
   id: string;
   name: string;
   countryCode: string;
@@ -141,6 +147,42 @@ export function loadTrips(userId: string): Trip[] {
 function saveTrips(userId: string, trips: Trip[]) {
   localStorage.setItem(storageKey(userId), JSON.stringify(trips));
 }
+// Resolve the card background for a trip. User override wins; otherwise
+// fall back to the country's curated photo, then a gradient.
+export function tripCardBackgroundStyle(trip: Trip): CSSProperties {
+  if (trip.theme?.kind === 'photo') {
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.35), rgba(15,23,42,0.85)), url("${trip.theme.url}")`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    };
+  }
+  if (trip.theme?.kind === 'color') {
+    return { background: `linear-gradient(135deg, ${trip.theme.from}, ${trip.theme.to})` };
+  }
+  const photo = getCountryPhoto(trip.countryCode);
+  if (photo) {
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.35), rgba(15,23,42,0.88)), url("${photo.url}")`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    };
+  }
+  return { background: fallbackGradient(trip.countryCode) };
+}
+
+// Preset palettes offered in the trip-theme editor.
+export const TRIP_COLOR_PRESETS: { label: string; from: string; to: string }[] = [
+  { label: '선셋',   from: '#be123c', to: '#f59e0b' },
+  { label: '인디고', from: '#1e3a8a', to: '#6366f1' },
+  { label: '에메랄드', from: '#065f46', to: '#10b981' },
+  { label: '라벤더', from: '#581c87', to: '#a78bfa' },
+  { label: '오션',   from: '#0c4a6e', to: '#22d3ee' },
+  { label: '장미',   from: '#831843', to: '#f472b6' },
+  { label: '탠',     from: '#78350f', to: '#fbbf24' },
+  { label: '자정',   from: '#020617', to: '#1e293b' },
+];
+
 function tripDays(trip: Trip): number {
   if (!trip.startDate || !trip.endDate) return 1;
   return Math.max(1, Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000));
@@ -341,6 +383,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
   const [showMap, setShowMap] = useState(false);
   const [mapDay, setMapDay] = useState(1);
   const [showExplorer, setShowExplorer] = useState(false);
+  const [showThemer, setShowThemer] = useState(false);
 
   // ── DETAIL VIEW ──────────────────────────────────────────────────
   if (view === 'detail' && selectedTrip) {
@@ -359,13 +402,23 @@ export default function ItineraryManager({ userId }: { userId: string }) {
           </button>
         </div>
 
-        {/* Trip header */}
-        <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700/60">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-3xl">{country?.flag ?? '🌍'}</span>
+        {/* Trip header — themed background */}
+        <div
+          className="relative overflow-hidden rounded-2xl p-5 border border-slate-700/60 shadow-xl shadow-black/30"
+          style={tripCardBackgroundStyle(selectedTrip)}
+        >
+          <button
+            onClick={() => setShowThemer(v => !v)}
+            className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur border border-white/20 text-white transition-colors"
+            title="배경 바꾸기"
+          >
+            🎨 배경
+          </button>
+          <div className="relative flex items-center gap-3 mb-3">
+            <span className="text-3xl drop-shadow-md">{country?.flag ?? '🌍'}</span>
             <div>
-              <h2 className="text-xl font-bold text-slate-100">{selectedTrip.name}</h2>
-              <p className="text-sm text-slate-400">
+              <h2 className="text-xl font-bold text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>{selectedTrip.name}</h2>
+              <p className="text-sm text-white/85">
                 {selectedTrip.startDate && selectedTrip.endDate
                   ? `${selectedTrip.startDate} ~ ${selectedTrip.endDate} · ${t.nightsDay(days)}`
                   : `${country?.nameKR ?? selectedTrip.countryCode}`}
@@ -396,9 +449,17 @@ export default function ItineraryManager({ userId }: { userId: string }) {
           )}
 
           {selectedTrip.notes && (
-            <p className="mt-3 text-sm text-slate-400 bg-slate-700/30 rounded-xl px-4 py-2">{selectedTrip.notes}</p>
+            <p className="relative mt-3 text-sm text-white/85 bg-black/35 backdrop-blur-sm rounded-xl px-4 py-2">{selectedTrip.notes}</p>
           )}
         </div>
+
+        {showThemer && (
+          <TripThemer
+            trip={selectedTrip}
+            onChange={(next) => updateTrip({ ...selectedTrip, ...next })}
+            onClose={() => setShowThemer(false)}
+          />
+        )}
 
         {/* Activity header */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -642,26 +703,29 @@ export default function ItineraryManager({ userId }: { userId: string }) {
             <button
               key={trip.id}
               onClick={() => { setSelectedTrip(trip); setView('detail'); }}
-              className="p-4 rounded-2xl border border-slate-700/60 bg-slate-800 hover:border-indigo-600/60 transition-all text-left group"
+              className="relative overflow-hidden p-5 rounded-2xl border border-slate-700/60 hover:border-indigo-400/60 transition-all text-left group min-h-[160px] shadow-lg shadow-black/20"
+              style={tripCardBackgroundStyle(trip)}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">{country?.flag ?? '🌍'}</span>
+              <div className="relative flex items-center gap-2 mb-2">
+                <span className="text-2xl drop-shadow">{country?.flag ?? '🌍'}</span>
                 <div>
-                  <p className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">{trip.name}</p>
-                  <p className="text-xs text-slate-400">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
+                  <p className="text-base font-bold text-white group-hover:text-indigo-200 transition-colors" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>{trip.name}</p>
+                  <p className="text-[11px] text-white/80">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mb-3">{trip.startDate} ~ {trip.endDate}</p>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">{trip.activities.length} {t.totalActivities}</span>
+              {(trip.startDate || trip.endDate) && (
+                <p className="relative text-[11px] text-white/70 mb-3">{trip.startDate} ~ {trip.endDate}</p>
+              )}
+              <div className="relative flex items-center justify-between text-xs">
+                <span className="text-white/80">{trip.activities.length} {t.totalActivities}</span>
                 {trip.budget > 0 && (
-                  <span className="text-slate-400">{fmtAmount(totalCost, trip.currency)} / {fmtAmount(trip.budget, trip.currency)}</span>
+                  <span className="text-white/85 font-medium">{fmtAmount(totalCost, trip.currency)} / {fmtAmount(trip.budget, trip.currency)}</span>
                 )}
               </div>
               {trip.budget > 0 && (
-                <div className="mt-2 w-full bg-slate-700/50 rounded-full h-1">
+                <div className="relative mt-2 w-full bg-black/40 rounded-full h-1">
                   <div
-                    className={`h-full rounded-full ${totalCost > trip.budget ? 'bg-red-500' : 'bg-indigo-500'}`}
+                    className={`h-full rounded-full ${totalCost > trip.budget ? 'bg-red-400' : 'bg-indigo-300'}`}
                     style={{ width: `${Math.min((totalCost / trip.budget) * 100, 100)}%` }}
                   />
                 </div>
@@ -1685,3 +1749,100 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = 'w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors';
 const inputSmCls = 'w-full bg-slate-700/70 border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors';
+
+// ── Trip theme editor (background photo or gradient) ───────────────
+function TripThemer({
+  trip,
+  onChange,
+  onClose,
+}: {
+  trip: Trip;
+  onChange: (patch: { theme?: TripTheme }) => void;
+  onClose: () => void;
+}) {
+  const [customUrl, setCustomUrl] = useState(trip.theme?.kind === 'photo' ? trip.theme.url : '');
+  const countryPhoto = getCountryPhoto(trip.countryCode);
+
+  // A handful of curated photo presets per trip.
+  const presetPhotos = [
+    countryPhoto?.url,
+    'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=80&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1488085061387-422e29b40080?w=1200&q=80&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1504150558240-0b4fd8946624?w=1200&q=80&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&q=80&auto=format&fit=crop',
+  ].filter((u): u is string => !!u);
+
+  return (
+    <div className="rounded-2xl p-4 border border-indigo-700/40 bg-indigo-900/10 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-100">🎨 배경 꾸미기</h3>
+        <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-sm">✕</button>
+      </div>
+
+      <div>
+        <p className="text-[11px] text-slate-400 mb-1.5">사진 프리셋</p>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {presetPhotos.map(url => (
+            <button
+              key={url}
+              onClick={() => onChange({ theme: { kind: 'photo', url } })}
+              className={`aspect-video rounded-lg overflow-hidden border-2 transition-all ${
+                trip.theme?.kind === 'photo' && trip.theme.url === url
+                  ? 'border-indigo-400 ring-2 ring-indigo-400/40'
+                  : 'border-slate-700 hover:border-slate-500'
+              }`}
+              style={{ backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+              aria-label="이 사진으로 배경 설정"
+            />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] text-slate-400 mb-1.5">팔레트</p>
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          {TRIP_COLOR_PRESETS.map(p => {
+            const active = trip.theme?.kind === 'color' && trip.theme.from === p.from && trip.theme.to === p.to;
+            return (
+              <button
+                key={p.label}
+                onClick={() => onChange({ theme: { kind: 'color', from: p.from, to: p.to } })}
+                className={`aspect-square rounded-lg border-2 transition-all ${
+                  active ? 'border-indigo-400 ring-2 ring-indigo-400/40' : 'border-slate-700 hover:border-slate-500'
+                }`}
+                style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})` }}
+                title={p.label}
+                aria-label={p.label}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] text-slate-400 mb-1.5">이미지 URL 직접 넣기</p>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={customUrl}
+            onChange={e => setCustomUrl(e.target.value)}
+            placeholder="https://..."
+            className={inputSmCls}
+          />
+          <button
+            onClick={() => customUrl.trim() && onChange({ theme: { kind: 'photo', url: customUrl.trim() } })}
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs transition-colors shrink-0"
+          >적용</button>
+        </div>
+      </div>
+
+      <button
+        onClick={() => onChange({ theme: undefined })}
+        className="text-[11px] text-slate-500 hover:text-slate-300 underline-offset-2 hover:underline"
+      >
+        기본으로 초기화
+      </button>
+    </div>
+  );
+}
