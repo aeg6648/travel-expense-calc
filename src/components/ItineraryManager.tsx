@@ -212,6 +212,46 @@ function sortActivities(a: Activity, b: Activity): number {
   return (a.time || '').localeCompare(b.time || '');
 }
 
+// Fallback USD→target rates used when live rates aren't available yet.
+// Keeps totals sane on the very first render before /api/exchange-rates
+// resolves. Updated manually — the live map overrides these once loaded.
+const FALLBACK_USD_RATES: Record<string, number> = {
+  USD: 1,    KRW: 1450, JPY: 151, EUR: 0.92, GBP: 0.79, CNY: 7.25,
+  HKD: 7.83, TWD: 32,   SGD: 1.35, THB: 35,   VND: 25400, PHP: 57,
+  IDR: 16000, MYR: 4.7, INR: 84,   AUD: 1.55, NZD: 1.63, CAD: 1.36,
+  CHF: 0.9,  TRY: 34,   AED: 3.67, SAR: 3.75, EGP: 48,   MAD: 10,
+  MXN: 17,   BRL: 5,    CZK: 23,   PLN: 3.9,  SEK: 10.5, NOK: 10.7,
+  DKK: 6.9,  MNT: 3500, NPR: 133,
+};
+
+// Convert an amount from one currency into another using /api/exchange-
+// -rates values (quoted vs. USD). Falls back to hardcoded defaults when
+// rates for a particular currency aren't present.
+export function convertCurrency(
+  amount: number,
+  from: string,
+  to: string,
+  rates?: Record<string, number>,
+): number {
+  if (!amount || from === to) return amount;
+  const r = rates ?? {};
+  const fromRate = r[from] ?? FALLBACK_USD_RATES[from];
+  const toRate = r[to] ?? FALLBACK_USD_RATES[to];
+  if (!fromRate || !toRate) return amount;
+  const amountInUsd = amount / fromRate;
+  return Math.round(amountInUsd * toRate);
+}
+
+// Sum any number of activity {cost, currency} pairs into a single
+// base currency using convertCurrency.
+export function sumInCurrency(
+  items: { cost: number; currency: string }[],
+  base: string,
+  rates?: Record<string, number>,
+): number {
+  return items.reduce((s, a) => s + convertCurrency(a.cost || 0, a.currency, base, rates), 0);
+}
+
 // Haversine distance in km between two coordinate points.
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -288,7 +328,7 @@ function usePlacesSearch(query: string) {
 }
 
 // ── Main component ──────────────────────────────────────────────────
-export default function ItineraryManager({ userId }: { userId: string }) {
+export default function ItineraryManager({ userId, allRates }: { userId: string; allRates?: Record<string, number> }) {
   const { t } = useLang();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
@@ -404,7 +444,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
   if (view === 'detail' && selectedTrip) {
     const days = tripDays(selectedTrip);
     const country = COUNTRIES.find(c => c.code === selectedTrip.countryCode);
-    const totalCost = selectedTrip.activities.reduce((s, a) => s + (a.cost || 0), 0);
+    const totalCost = sumInCurrency(selectedTrip.activities, selectedTrip.currency, allRates);
 
     return (
       <div className="space-y-4">
@@ -575,10 +615,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                 )}
                 <div className="flex-1 h-px bg-slate-700/60" />
                 <span className="text-[10px] text-slate-500">
-                  {(() => {
-                    const total = dayActs.reduce((s, a) => s + (a.cost || 0), 0);
-                    return fmtAmount(total, selectedTrip.currency);
-                  })()}
+                  {fmtAmount(sumInCurrency(dayActs, selectedTrip.currency, allRates), selectedTrip.currency)}
                 </span>
               </div>
 
@@ -713,7 +750,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
         {trips.map(trip => {
           const country = COUNTRIES.find(c => c.code === trip.countryCode);
           const days = tripDays(trip);
-          const totalCost = trip.activities.reduce((s, a) => s + (a.cost || 0), 0);
+          const totalCost = sumInCurrency(trip.activities, trip.currency, allRates);
           return (
             <button
               key={trip.id}
@@ -1040,9 +1077,16 @@ const CURRENCY_FLAG: Record<string, string> = {
 };
 
 function fmtAmount(amount: number, currency: string): string {
-  if (currency === 'KRW') return `${(amount / 10000).toLocaleString()}만원`;
+  if (currency === 'KRW') {
+    if (amount < 10000) return `${Math.round(amount).toLocaleString()}원`;
+    const man = amount / 10000;
+    if (man >= 100 || Math.abs(man - Math.round(man)) < 0.05) {
+      return `${Math.round(man).toLocaleString()}만원`;
+    }
+    return `${man.toFixed(1)}만원`;
+  }
   const flag = CURRENCY_FLAG[currency] ?? '💱';
-  return `${flag} ${Number(amount).toLocaleString()}`;
+  return `${flag} ${Math.round(Number(amount)).toLocaleString()}`;
 }
 
 // ── Activity form with Google Places search ─────────────────────────

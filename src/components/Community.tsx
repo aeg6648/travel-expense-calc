@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { COUNTRIES } from '@/lib/travel-data';
-import { loadTrips, type Trip, type Activity } from '@/components/ItineraryManager';
+import { loadTrips, sumInCurrency, type Trip, type Activity } from '@/components/ItineraryManager';
 import { isAdminEmail } from '@/lib/admin';
 
 export interface CommunityComment {
@@ -157,7 +157,7 @@ export function useCommunityPosts(): Store {
 
 function SharedTripCard({ trip, compact }: { trip: Trip; compact?: boolean }) {
   const country = COUNTRIES.find(c => c.code === trip.countryCode);
-  const totalCost = trip.activities.reduce((s, a) => s + (a.cost || 0), 0);
+  const totalCost = sumInCurrency(trip.activities, trip.currency);
   const days = trip.startDate && trip.endDate
     ? Math.max(1, Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000))
     : 1;
