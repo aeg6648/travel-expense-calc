@@ -32,7 +32,7 @@ export const CELEBRITY_DESTINATIONS: CelebrityDestination[] = [
     countryCode: 'GR',
     photo: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1200&q=80&auto=format&fit=crop',
     gallery: [
-      'https://images.unsplash.com/photo-1602779947547-bbd36aedd0ec?w=900&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1507501336603-6e31db2be093?w=900&q=80&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1601581875309-fafbf2d3ed3a?w=900&q=80&auto=format&fit=crop',
     ],
     caption: '화보 촬영으로 다녀온 에게해의 석양',
@@ -160,7 +160,7 @@ export const CELEBRITY_DESTINATIONS: CelebrityDestination[] = [
     person: '곽튜브',
     city: '리스본, 포르투갈',
     countryCode: 'PT',
-    photo: 'https://images.unsplash.com/photo-1513735539099-cf6e5c329326?w=1200&q=80&auto=format&fit=crop',
+    photo: 'https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=1200&q=80&auto=format&fit=crop',
     caption: '알파마 언덕·28번 트램 현지 유튜브',
     tag: '🎬 유튜브',
     year: 2024,

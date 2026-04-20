@@ -1570,31 +1570,45 @@ function MapView({
 }: {
   activities: Activity[];
   days: number;
-  selectedDay: number;
+  selectedDay: number; // 0 means "전체 (cross-day)"
   onDayChange: (d: number) => void;
   startDate: string;
 }) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
+  const isAll = selectedDay === 0;
   // Match the day-view sort exactly so dragging a card updates the map
   // in real time (manual order wins → time → insertion order).
-  const dayActivities = activities
-    .filter(a => a.day === selectedDay && a.location)
-    .sort(sortActivities);
+  const dayActivities = isAll
+    ? activities
+        .filter(a => a.location)
+        .sort((a, b) => {
+          if (a.day !== b.day) return a.day - b.day;
+          return sortActivities(a, b);
+        })
+    : activities.filter(a => a.day === selectedDay && a.location).sort(sortActivities);
+
+  // Google Embed Directions API allows 0–10 waypoints. Clamp gracefully
+  // when "전체" spans a very long trip.
+  const WAYPOINT_MAX = 10;
+  const clippedExtras = Math.max(0, dayActivities.length - (WAYPOINT_MAX + 2));
+  const clipped = clippedExtras > 0
+    ? [...dayActivities.slice(0, WAYPOINT_MAX + 1), dayActivities[dayActivities.length - 1]]
+    : dayActivities;
 
   const embedUrl = (() => {
-    if (!apiKey || dayActivities.length === 0) return '';
-    if (dayActivities.length === 1) {
-      const q = dayActivities[0].locationPlaceId
-        ? `place_id:${dayActivities[0].locationPlaceId}`
-        : encodeURIComponent(dayActivities[0].location);
+    if (!apiKey || clipped.length === 0) return '';
+    if (clipped.length === 1) {
+      const q = clipped[0].locationPlaceId
+        ? `place_id:${clipped[0].locationPlaceId}`
+        : encodeURIComponent(clipped[0].location);
       return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${q}&language=ko`;
     }
     const enc = (a: Activity) =>
       a.locationPlaceId ? `place_id:${a.locationPlaceId}` : encodeURIComponent(a.location);
-    const origin = enc(dayActivities[0]);
-    const dest = enc(dayActivities[dayActivities.length - 1]);
-    const waypoints = dayActivities.slice(1, -1).map(enc).join('|');
+    const origin = enc(clipped[0]);
+    const dest = enc(clipped[clipped.length - 1]);
+    const waypoints = clipped.slice(1, -1).map(enc).join('|');
     let url = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${origin}&destination=${dest}&language=ko`;
     if (waypoints) url += `&waypoints=${waypoints}`;
     return url;
@@ -1604,6 +1618,15 @@ function MapView({
     <div className="bg-slate-800 rounded-2xl border border-emerald-700/40 overflow-hidden">
       <div className="flex items-center gap-1 px-4 py-3 border-b border-slate-700/60 overflow-x-auto">
         <span className="text-xs text-slate-400 shrink-0 mr-1">Day</span>
+        <button
+          onClick={() => onDayChange(0)}
+          className={`shrink-0 text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+            isAll
+              ? 'bg-emerald-700/40 border-emerald-600/60 text-emerald-300'
+              : 'border-slate-600 text-slate-300 hover:bg-slate-700'
+          }`}
+        >전체</button>
+        <span className="text-slate-700 mx-1">·</span>
         {Array.from({ length: days }, (_, i) => i + 1).map(d => {
           const hasLocs = activities.some(a => a.day === d && a.location);
           return (
@@ -1638,9 +1661,15 @@ function MapView({
       ) : (
         <div className="h-48 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
           <span className="text-2xl">📍</span>
-          <p>Day {selectedDay}에 위치가 지정된 활동이 없어요</p>
+          <p>{isAll ? '위치가 지정된 활동이 없어요' : `Day ${selectedDay}에 위치가 지정된 활동이 없어요`}</p>
           <p className="text-xs text-slate-600">활동 추가 시 위치를 검색해 등록해보세요</p>
         </div>
+      )}
+
+      {clippedExtras > 0 && (
+        <p className="px-4 py-2 text-[10px] text-amber-400 bg-amber-900/20 border-t border-amber-900/40">
+          ⚠️ Google 지도 임베드 한계로 중간 지점 {clippedExtras}곳은 경로에서 생략됐어요. 날짜별 보기로 전환하면 모두 볼 수 있어요.
+        </p>
       )}
 
       {dayActivities.length > 0 && (
@@ -1648,6 +1677,7 @@ function MapView({
           {dayActivities.map((act, idx) => (
             <div key={act.id} className="flex items-center gap-2 text-xs text-slate-400">
               <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-800/50 text-emerald-300 flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
+              {isAll && <span className="shrink-0 text-[10px] text-indigo-400">D{act.day}</span>}
               <span className="truncate flex-1 min-w-0">{act.location}</span>
               {act.time && <span className="shrink-0 text-slate-500">{act.time}</span>}
             </div>

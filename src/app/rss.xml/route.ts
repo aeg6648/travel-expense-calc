@@ -1,4 +1,5 @@
 import { COUNTRIES } from '@/lib/travel-data';
+import { GUIDES } from '@/lib/guides';
 
 const SITE_URL = 'https://www.tripbudget.my';
 const SITE_TITLE = 'TRIP-B · 여행 플래너';
@@ -16,7 +17,20 @@ function escapeXml(s: string): string {
 export async function GET() {
   const now = new Date().toUTCString();
 
-  const items = COUNTRIES.map((c) => {
+  const guideItems = GUIDES.map((g) => {
+    const url = `${SITE_URL}/guides/${g.slug}`;
+    const pub = new Date(g.publishedAt).toUTCString();
+    return `    <item>
+      <title>${escapeXml(g.title)}</title>
+      <link>${url}</link>
+      <guid isPermaLink="true">${url}</guid>
+      <description>${escapeXml(g.description)}</description>
+      <category>여행 가이드</category>
+      <pubDate>${pub}</pubDate>
+    </item>`;
+  }).join('\n');
+
+  const countryItems = COUNTRIES.map((c) => {
     const url = `${SITE_URL}/country/${c.code.toLowerCase()}`;
     const title = `${c.nameKR} 여행 경비 완전 가이드 2026`;
     const desc = `${c.nameKR} ${c.defaultDuration}박 기준 알뜰 ₩${c.costs.budget.avg.toLocaleString()} ~ 프리미엄 ₩${c.costs.luxury.avg.toLocaleString()}. 항공권 ₩${c.flight.basePriceKRW.toLocaleString()}~, 숙박·식비·교통비 상세 분석.`;
@@ -25,9 +39,12 @@ export async function GET() {
       <link>${url}</link>
       <guid isPermaLink="true">${url}</guid>
       <description>${escapeXml(desc)}</description>
+      <category>국가별 경비</category>
       <pubDate>${now}</pubDate>
     </item>`;
   }).join('\n');
+
+  const items = [guideItems, countryItems].filter(Boolean).join('\n');
 
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">

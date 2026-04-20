@@ -31,6 +31,7 @@ export interface CommunityPost {
   comments: CommunityComment[];
   createdAt: string;
   sharedTrip?: Trip; // snapshot of the author's saved itinerary at post time
+  kind?: 'post' | 'qna'; // feed post vs. question to admin
 }
 
 const STORAGE_KEY = 'tripb_community_posts_v1';
@@ -198,24 +199,74 @@ function SharedTripCard({ trip, compact }: { trip: Trip; compact?: boolean }) {
       </div>
       {!compact && orderedDays.length > 0 && (
         <div className="px-4 py-3 space-y-2.5 max-h-96 overflow-auto">
-          {orderedDays.map(d => (
+          {orderedDays.map(d => {
+            const stops = byDay.get(d)!.filter(a => a.location);
+            const routeHref = stops.length >= 2
+              ? (() => {
+                  const enc = (a: Activity) => a.locationPlaceId ? `place_id:${a.locationPlaceId}` : encodeURIComponent(a.location);
+                  const origin = enc(stops[0]);
+                  const dest = enc(stops[stops.length - 1]);
+                  const waypoints = stops.slice(1, -1).map(enc).join('|');
+                  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
+                  if (waypoints) url += `&waypoints=${waypoints}`;
+                  return url;
+                })()
+              : null;
+            return (
             <div key={d}>
-              <p className="text-[11px] font-semibold text-indigo-300 mb-1">Day {d}</p>
-              <div className="space-y-1 pl-2 border-l border-indigo-700/30">
-                {byDay.get(d)!.map(a => (
-                  <div key={a.id} className="text-[11px] text-slate-300 flex items-center gap-2">
-                    {a.time && <span className="text-slate-500 tabular-nums shrink-0">{a.time}</span>}
-                    <span className="truncate">{a.title}</span>
-                    {a.cost > 0 && (
-                      <span className="text-slate-500 ml-auto shrink-0">
-                        {a.currency === 'KRW' ? `${(a.cost / 10000).toLocaleString()}만` : `${a.cost.toLocaleString()}`}
-                      </span>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-semibold text-indigo-300">Day {d}</p>
+                {routeHref && (
+                  <a
+                    href={routeHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] px-2 py-0.5 rounded-full border border-indigo-700/50 text-indigo-300 hover:bg-indigo-900/30 transition-colors"
+                  >🗺 동선 보기</a>
+                )}
+              </div>
+              <div className="space-y-2 pl-2 border-l border-indigo-700/30">
+                {byDay.get(d)!.map(a => {
+                  const mapsHref = a.locationPlaceId
+                    ? `https://www.google.com/maps/place/?q=place_id:${a.locationPlaceId}`
+                    : a.location
+                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.location)}`
+                      : null;
+                  return (
+                  <div key={a.id} className="text-[11px] text-slate-300">
+                    <div className="flex items-center gap-2">
+                      {a.time && <span className="text-slate-500 tabular-nums shrink-0">{a.time}</span>}
+                      <span className="truncate">{a.title}</span>
+                      {a.cost > 0 && (
+                        <span className="text-slate-500 ml-auto shrink-0">
+                          {a.currency === 'KRW' ? `${(a.cost / 10000).toLocaleString()}만` : `${a.cost.toLocaleString()}`}
+                        </span>
+                      )}
+                    </div>
+                    {a.location && (
+                      mapsHref ? (
+                        <a
+                          href={mapsHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="ml-[3.5rem] inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-indigo-300 transition-colors"
+                        >
+                          <span>📍</span>
+                          <span className="truncate max-w-[200px]">{a.location}</span>
+                          <span className="opacity-60">↗</span>
+                        </a>
+                      ) : (
+                        <p className="ml-[3.5rem] text-[10px] text-slate-500 truncate">📍 {a.location}</p>
+                      )
                     )}
                   </div>
-                ))}
+                );})}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {compact && (
@@ -238,9 +289,10 @@ function formatRelative(iso: string): string {
 
 interface Props {
   initialAuthorSub?: string; // when opened from profile, filter to that user's posts
+  initialKind?: 'post' | 'qna';
 }
 
-export default function Community({ initialAuthorSub }: Props) {
+export default function Community({ initialAuthorSub, initialKind }: Props) {
   const { user } = useAuth();
   const store = useCommunityPosts();
   const { posts, source } = store;
@@ -249,13 +301,15 @@ export default function Community({ initialAuthorSub }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [countryFilter, setCountryFilter] = useState<string>('');
   const [authorFilter, setAuthorFilter] = useState<string>(initialAuthorSub ?? '');
+  const [boardKind, setBoardKind] = useState<'post' | 'qna'>(initialKind ?? 'post');
 
   const filtered = useMemo(() => {
     return posts
+      .filter(p => (p.kind ?? 'post') === boardKind)
       .filter(p => !countryFilter || p.countryCode === countryFilter)
       .filter(p => !authorFilter || p.authorSub === authorFilter)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [posts, countryFilter, authorFilter]);
+  }, [posts, countryFilter, authorFilter, boardKind]);
 
   const selectedPost = selectedId ? posts.find(p => p.id === selectedId) : null;
 
@@ -322,6 +376,7 @@ export default function Community({ initialAuthorSub }: Props) {
     return (
       <PostForm
         user={{ sub: user.sub, name: user.name, picture: user.picture, email: user.email }}
+        defaultKind={boardKind}
         onSave={(p) => { savePost(p); setView('list'); }}
         onCancel={() => setView('list')}
       />
@@ -333,8 +388,14 @@ export default function Community({ initialAuthorSub }: Props) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-start gap-2">
           <div>
-            <h2 className="text-base font-semibold text-slate-100">💬 여행 커뮤니티</h2>
-            <p className="text-xs text-slate-500 mt-0.5">다른 여행자의 일정·후기를 살펴보고 이야기를 나눠보세요</p>
+            <h2 className="text-base font-semibold text-slate-100">
+              {boardKind === 'qna' ? '❓ 문의 / Q&A 게시판' : '💬 여행 커뮤니티'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {boardKind === 'qna'
+                ? '관리자에게 직접 질문해보세요. 답변은 이 게시판에 공개됩니다.'
+                : '다른 여행자의 일정·후기를 살펴보고 이야기를 나눠보세요'}
+            </p>
           </div>
           {source === 'server' && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/30 border border-emerald-700/50 text-emerald-400" title="Vercel KV 연결됨">
@@ -357,11 +418,30 @@ export default function Community({ initialAuthorSub }: Props) {
             onClick={() => setView('create')}
             className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
           >
-            + 글쓰기
+            {boardKind === 'qna' ? '+ 문의하기' : '+ 글쓰기'}
           </button>
         )}
       </div>
 
+      {/* Board kind tab switch */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-800/60 border border-slate-700/60 w-fit">
+        {([
+          { id: 'post', label: '📰 피드' },
+          { id: 'qna',  label: '❓ Q&A 문의' },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setBoardKind(t.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              boardKind === t.id
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >{t.label}</button>
+        ))}
+      </div>
+
+      {boardKind === 'post' && (
       <div className="flex flex-wrap items-center gap-1.5">
         <button
           onClick={() => setCountryFilter('')}
@@ -381,6 +461,7 @@ export default function Community({ initialAuthorSub }: Props) {
           >✕ 내 글만 보기 해제</button>
         )}
       </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-16 bg-slate-800/50 rounded-2xl border border-slate-700/60">
@@ -604,12 +685,14 @@ function PostDetail({
 const NICK_KEY = 'tripb_community_nickname_v1';
 
 function PostForm({
-  user, onSave, onCancel,
+  user, defaultKind, onSave, onCancel,
 }: {
   user: { sub: string; name: string; picture?: string; email?: string };
+  defaultKind: 'post' | 'qna';
   onSave: (p: CommunityPost) => void;
   onCancel: () => void;
 }) {
+  const kind = defaultKind;
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [countryCode, setCountryCode] = useState('');
@@ -649,17 +732,26 @@ function PostForm({
       likes: [],
       comments: [],
       createdAt: new Date().toISOString(),
-      sharedTrip: selectedTrip ? { ...selectedTrip } : undefined,
+      sharedTrip: kind === 'post' && selectedTrip ? { ...selectedTrip } : undefined,
+      kind,
     });
   };
 
   return (
     <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700/60 space-y-3 max-w-2xl">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-100">새 글 쓰기</h2>
+        <h2 className="text-base font-semibold text-slate-100">
+          {kind === 'qna' ? '❓ 새 문의 작성' : '새 글 쓰기'}
+        </h2>
         <button onClick={onCancel} className="text-slate-500 hover:text-slate-300">✕</button>
       </div>
+      {kind === 'qna' && (
+        <p className="text-[11px] text-indigo-300 bg-indigo-900/20 border border-indigo-700/40 rounded-lg px-3 py-2">
+          🛡️ 관리자가 직접 답변합니다. 실명/이메일은 관리자만 볼 수 있어요.
+        </p>
+      )}
 
+      {kind === 'post' && (
       <div>
         <label className="text-xs font-medium text-slate-400 block mb-1.5">관련 나라 (선택)</label>
         <select
@@ -673,7 +765,9 @@ function PostForm({
           ))}
         </select>
       </div>
+      )}
 
+      {kind === 'post' && (
       <div>
         <label className="text-xs font-medium text-slate-400 block mb-1.5">
           📅 내 일정 첨부 <span className="text-slate-600 font-normal">(선택 — 글과 함께 공유돼요)</span>
@@ -701,6 +795,7 @@ function PostForm({
         )}
         {selectedTrip && <SharedTripCard trip={selectedTrip} compact />}
       </div>
+      )}
 
       <div>
         <label className="text-xs font-medium text-slate-400 block mb-1.5">제목</label>

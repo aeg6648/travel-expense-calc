@@ -66,6 +66,7 @@ export default function Home() {
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('itinerary');
   const [communityAuthorFilter, setCommunityAuthorFilter] = useState<string | undefined>(undefined);
+  const [communityInitialKind, setCommunityInitialKind] = useState<'post' | 'qna' | undefined>(undefined);
   const [activeVibe, setActiveVibe] = useState<VibeId | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export default function Home() {
   // any author filter so the community tab always opens on the shared feed.
   const handleTabClick = (m: Mode) => {
     setCommunityAuthorFilter(undefined);
+    setCommunityInitialKind(undefined);
     handleModeChange(m);
   };
 
@@ -240,17 +242,19 @@ export default function Home() {
                       <span className="text-base">📝</span>
                       <span>내가 쓴 글</span>
                     </button>
-                    {/* 문의하기 */}
-                    <a
-                      href={`mailto:snusmh@gmail.com?subject=트립비 문의&body=안녕하세요, 트립비 관련 문의드립니다.%0A%0A이름: ${user.name}%0A이메일: ${user.email}%0A%0A문의 내용:%0A`}
-                      onClick={() => setShowUserMenu(false)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-400 hover:bg-slate-700 hover:text-slate-100 transition-colors border-t border-slate-700/60"
+                    {/* 문의 / Q&A 게시판 */}
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setCommunityAuthorFilter(undefined);
+                        setCommunityInitialKind('qna');
+                        handleModeChange('community');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-400 hover:bg-slate-700 hover:text-slate-100 transition-colors text-left border-t border-slate-700/60"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                      </svg>
-                      <span>문의하기</span>
-                    </a>
+                      <span className="text-base">❓</span>
+                      <span>문의 / Q&A 게시판</span>
+                    </button>
                     {/* 로그아웃 */}
                     <button
                       onClick={() => { setShowUserMenu(false); signOut(); }}
@@ -672,7 +676,11 @@ export default function Home() {
 
           {/* Community mode */}
           {mode === 'community' && (
-            <Community key={communityAuthorFilter ?? 'all'} initialAuthorSub={communityAuthorFilter} />
+            <Community
+              key={`${communityAuthorFilter ?? 'all'}-${communityInitialKind ?? 'post'}`}
+              initialAuthorSub={communityAuthorFilter}
+              initialKind={communityInitialKind}
+            />
           )}
 
           {/* Itinerary mode */}
@@ -740,7 +748,7 @@ export default function Home() {
 
 function SeoSection() {
   return (
-    <div className="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-8 space-y-5 text-sm">
+    <div className="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-8 space-y-6 text-sm">
       <div>
         <h2 className="text-lg font-bold text-slate-100 mb-2">여행 경비 계산기</h2>
         <p className="text-slate-400 leading-relaxed">
@@ -748,22 +756,39 @@ function SeoSection() {
           일본·태국·베트남·유럽 등 주요 여행지의 실제 경비를 블로그 후기 기반으로 계산합니다.
         </p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-        {[
-          { href: '/country/jp', label: '🇯🇵 일본 여행 경비' },
-          { href: '/country/th', label: '🇹🇭 태국 여행 비용' },
-          { href: '/country/vn', label: '🇻🇳 베트남 여행 비용' },
-          { href: '/country/sg', label: '🇸🇬 싱가포르 경비' },
-          { href: '/country/fr', label: '🇫🇷 프랑스 여행 경비' },
-          { href: '/country/us', label: '🇺🇸 미국 여행 비용' },
-          { href: '/country/au', label: '🇦🇺 호주 여행 경비' },
-          { href: '/country/it', label: '🇮🇹 이탈리아 경비' },
-        ].map(({ href, label }) => (
-          <a key={href} href={href} className="text-indigo-400 hover:text-indigo-300 transition-colors">{label}</a>
-        ))}
+      <div>
+        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">🗺️ 국가별 경비 가이드</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          {[
+            { href: '/country/jp', label: '🇯🇵 일본 여행 경비' },
+            { href: '/country/th', label: '🇹🇭 태국 여행 비용' },
+            { href: '/country/vn', label: '🇻🇳 베트남 여행 비용' },
+            { href: '/country/sg', label: '🇸🇬 싱가포르 경비' },
+            { href: '/country/fr', label: '🇫🇷 프랑스 여행 경비' },
+            { href: '/country/us', label: '🇺🇸 미국 여행 비용' },
+            { href: '/country/au', label: '🇦🇺 호주 여행 경비' },
+            { href: '/country/it', label: '🇮🇹 이탈리아 경비' },
+          ].map(({ href, label }) => (
+            <a key={href} href={href} className="text-indigo-400 hover:text-indigo-300 transition-colors">{label}</a>
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">📖 여행 예산 가이드</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+          {[
+            { href: '/guides/20s-first-overseas-travel-budget', label: '🎒 20대 첫 해외여행 예산 얼마면 될까?' },
+            { href: '/guides/japan-travel-cost-2026', label: '🗼 2026 일본 여행 경비 총정리' },
+            { href: '/guides/southeast-asia-budget-ranking', label: '🌴 동남아 가성비 국가 순위' },
+            { href: '/guides/peak-season-travel-cost', label: '📈 성수기 항공권 가격 차트' },
+          ].map(({ href, label }) => (
+            <a key={href} href={href} className="text-indigo-400 hover:text-indigo-300 transition-colors">{label}</a>
+          ))}
+        </div>
       </div>
       <p className="text-xs text-slate-500 border-t border-slate-700/60 pt-4">
         본 계산기의 데이터는 실제 여행 경험 기반이나 개인차·변동성이 있을 수 있습니다. 참고용으로만 사용하세요.
+        · <a href="/guides" className="text-indigo-400 hover:text-indigo-300">전체 가이드</a>
         · <a href="/privacy" className="text-indigo-400 hover:text-indigo-300">개인정보처리방침</a>
       </p>
     </div>
