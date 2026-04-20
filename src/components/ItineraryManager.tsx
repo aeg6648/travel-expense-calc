@@ -828,6 +828,9 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
           const country = COUNTRIES.find(c => c.code === trip.countryCode);
           const days = tripDays(trip);
           const totalCost = sumInCurrency(trip.activities, trip.currency, allRates);
+          const countdown = tripCountdown(trip);
+          const packed = (trip.packingList ?? []).length;
+          const packedChecked = (trip.packingList ?? []).filter(i => i.checked).length;
           return (
             <button
               key={trip.id}
@@ -835,17 +838,22 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
               className="relative overflow-hidden p-5 rounded-2xl border border-slate-700/60 hover:border-indigo-400/60 transition-all text-left group min-h-[160px] shadow-lg shadow-black/20"
               style={tripCardBackgroundStyle(trip)}
             >
-              <div className="relative flex items-center gap-2 mb-2">
+              {countdown && (
+                <span className={`absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-md shadow-black/30 ${countdown.color}`}>
+                  {countdown.label}
+                </span>
+              )}
+              <div className="relative flex items-center gap-2 mb-2 pr-16">
                 <span className="text-2xl drop-shadow">{country?.flag ?? '🌍'}</span>
-                <div>
-                  <p className="text-base font-bold text-white group-hover:text-indigo-200 transition-colors" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>{trip.name}</p>
-                  <p className="text-[11px] text-white/80">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
+                <div className="min-w-0">
+                  <p className="text-base font-bold text-white truncate group-hover:text-indigo-200 transition-colors" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>{trip.name}</p>
+                  <p className="text-[11px] text-white/80 truncate">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
                 </div>
               </div>
               {(trip.startDate || trip.endDate) && (
                 <p className="relative text-[11px] text-white/70 mb-3">{trip.startDate} ~ {trip.endDate}</p>
               )}
-              <div className="relative flex items-center justify-between text-xs">
+              <div className="relative flex items-center justify-between text-xs gap-2">
                 <span className="text-white/80">{trip.activities.length} {t.totalActivities}</span>
                 {trip.budget > 0 && (
                   <span className="text-white/85 font-medium">{fmtAmount(totalCost, trip.currency)} / {fmtAmount(trip.budget, trip.currency)}</span>
@@ -857,6 +865,12 @@ export default function ItineraryManager({ userId, allRates }: { userId: string;
                     className={`h-full rounded-full ${totalCost > trip.budget ? 'bg-red-400' : 'bg-indigo-300'}`}
                     style={{ width: `${Math.min((totalCost / trip.budget) * 100, 100)}%` }}
                   />
+                </div>
+              )}
+              {packed > 0 && (
+                <div className="relative mt-2 flex items-center gap-1 text-[10px] text-white/80">
+                  <span>🎒</span>
+                  <span>짐 {packedChecked}/{packed}</span>
                 </div>
               )}
             </button>

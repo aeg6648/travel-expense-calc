@@ -6,6 +6,7 @@ import { formatKRWShort } from '@/lib/utils';
 import { useState } from 'react';
 import { useLang } from '@/context/LangContext';
 import { getVibe, type VibeId } from '@/lib/vibes';
+import { COUNTRY_PHOTOS } from '@/lib/country-photos';
 
 interface Props {
   selectedCode: string | null;
@@ -14,23 +15,6 @@ interface Props {
   vibeId?: VibeId | null;
   onClearVibe?: () => void;
 }
-
-const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallbackTo: string }> = {
-  JP: { url: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#9f1239', fallbackTo: '#be123c' },
-  TH: { url: 'https://images.unsplash.com/photo-1506665531195-3566af2b4dfa?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#92400e', fallbackTo: '#b45309' },
-  VN: { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#065f46', fallbackTo: '#047857' },
-  TW: { url: 'https://images.unsplash.com/photo-1470004914212-05527e49370b?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#0c4a6e', fallbackTo: '#075985' },
-  SG: { url: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#7f1d1d', fallbackTo: '#991b1b' },
-  PH: { url: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#0e4163', fallbackTo: '#0369a1' },
-  ID: { url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#14532d', fallbackTo: '#166534' },
-  FR: { url: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#312e81', fallbackTo: '#3730a3' },
-  ES: { url: 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#7c2d12', fallbackTo: '#9a3412' },
-  TR: { url: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#7f1d1d', fallbackTo: '#991b1b' },
-  US: { url: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#1e3a5f', fallbackTo: '#1d4ed8' },
-  AU: { url: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#78350f', fallbackTo: '#92400e' },
-  HK: { url: 'https://images.unsplash.com/photo-1536431311719-398b6704d4cc?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#4c1d95', fallbackTo: '#5b21b6' },
-  IT: { url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400&q=75&auto=format&fit=crop', fallbackFrom: '#14532d', fallbackTo: '#15803d' },
-};
 
 export default function CountryGrid({ selectedCode, onSelect, style, vibeId, onClearVibe }: Props) {
   const { t } = useLang();
