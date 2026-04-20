@@ -1,8 +1,9 @@
 'use client';
 
 import { Country, TravelStyle } from '@/types/travel';
-import { formatKRW, formatKRWShort, CATEGORY_LABELS, CATEGORY_COLORS, STYLE_LABELS, classifyBlogData } from '@/lib/utils';
+import { formatKRWShort, CATEGORY_COLORS, classifyBlogData } from '@/lib/utils';
 import { getFlightMultiplier } from '@/lib/holidays';
+import { useLang } from '@/context/LangContext';
 
 interface Props {
   country: Country;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function CostSummaryCard({ country, style, duration, departureDate, currentKrwPerUsd, selectedCity, onStyleChange }: Props) {
+  const { t } = useLang();
   const costs = country.costs[style];
   const durationRatio = duration / country.defaultDuration;
   const rateRatio = currentKrwPerUsd / 1380;
@@ -63,10 +65,10 @@ export default function CostSummaryCard({ country, style, duration, departureDat
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-400">{duration}박 · {STYLE_LABELS[style]}{selectedCity ? ` · ${selectedCity}` : ''}</p>
+          <p className="text-xs text-slate-400">{duration}{t.nightUnit} · {t.styleLabels[style]}{selectedCity ? ` · ${selectedCity}` : ''}</p>
           <p className="text-2xl font-bold text-slate-100 mt-0.5">{formatKRWShort(total)}원</p>
           <p className="text-[10px] text-slate-500 mt-0.5">
-            {blogBasedTotal ? `실후기 ${matchingBlogEntries.length}건 평균 · 시즌·환율 보정` : '추정값'}
+            {blogBasedTotal ? t.blogReviewAvg(matchingBlogEntries.length) : t.estimated}
           </p>
         </div>
       </div>
@@ -91,7 +93,7 @@ export default function CostSummaryCard({ country, style, duration, departureDat
         };
         return (
           <div className="bg-slate-700/30 rounded-xl p-3 space-y-2">
-            <p className="text-[11px] text-slate-400">실제 블로그 후기 지출 평균 ({duration}박 환산) · 클릭해서 스타일 전환</p>
+            <p className="text-[11px] text-slate-400">{t.blogAvgLabel(matchingBlogEntries.length, duration)}</p>
             <div className="flex gap-2">
               {styleGroups.map(({ s, avgKRW, count }) => {
                 const isActive = s === style;
@@ -107,13 +109,13 @@ export default function CostSummaryCard({ country, style, duration, departureDat
                     }`}
                   >
                     <p className={`text-[10px] font-semibold mb-1 ${isActive ? c.label : 'text-slate-500'}`}>
-                      {STYLE_LABELS[s]}
+                      {t.styleLabels[s]}
                     </p>
                     <p className={`text-sm font-bold ${isActive ? c.val : 'text-slate-400'}`}>
-                      {avgKRW ? `${formatKRWShort(avgKRW)}원` : '데이터 없음'}
+                      {avgKRW ? `${formatKRWShort(avgKRW)}원` : t.noData}
                     </p>
                     <p className={`text-[9px] mt-0.5 ${isActive ? c.label : 'text-slate-500'}`}>
-                      {count}건 평균{isActive ? ' · 선택됨' : ''}
+                      {t.reviewCount(count)}{isActive ? ` · ${t.selected}` : ''}
                     </p>
                   </button>
                 );
@@ -132,7 +134,7 @@ export default function CostSummaryCard({ country, style, duration, departureDat
               <div className="flex items-center justify-between text-xs mb-1">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full" style={{ background: CATEGORY_COLORS[key] }} />
-                  <span className="text-slate-400">{CATEGORY_LABELS[key]}</span>
+                  <span className="text-slate-400">{t.categoryLabels[key as keyof typeof t.categoryLabels] ?? key}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-500">{pct}%</span>

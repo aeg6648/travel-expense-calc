@@ -5,8 +5,9 @@ export async function generateStaticParams() {
   return countries.map((code) => ({ code: code.toLowerCase() }));
 }
 
-export default function CountryPage({ params }: { params: { code: string } }) {
-  const code = params.code?.toUpperCase();
+export default async function CountryPage({ params }: PageProps<'/country/[code]'>) {
+  const { code: rawCode } = await params;
+  const code = rawCode?.toUpperCase();
   const country = code ? getCountryByCode(code) : null;
 
   if (!country) {

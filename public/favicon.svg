@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <!-- Airplane top-down view -->
+  <!-- Fuselage -->
+  <path d="M15 5 C13.5 5 13.5 7 13.5 9 L13.5 20 C13.5 22 13.5 24 15 25 L16 26 L17 25 C18.5 24 18.5 22 18.5 20 L18.5 9 C18.5 7 18.5 5 17 5 Z" fill="white"/>
+  <!-- Left wing -->
+  <path d="M13.5 12.5 L4 17.5 L4 19.5 L13.5 15.5 Z" fill="white"/>
+  <!-- Right wing -->
+  <path d="M18.5 12.5 L28 17.5 L28 19.5 L18.5 15.5 Z" fill="white"/>
+  <!-- Left tail -->
+  <path d="M13.5 20.5 L9.5 23.5 L9.5 24.5 L13.5 22 Z" fill="white"/>
+  <!-- Right tail -->
+  <path d="M18.5 20.5 L22.5 23.5 L22.5 24.5 L18.5 22 Z" fill="white"/>
+</svg>

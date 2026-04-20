@@ -1,12 +1,16 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
+import { LangProvider } from '@/context/LangContext';
+import { AuthProvider } from '@/context/AuthContext';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '여행 경비 계산기 - 국가별 여행 비용 예측',
-  description: '호주, 일본, 태국, 싱가포르 등 국가별 여행 경비를 실시간으로 계산하세요. 블로그 후기 기반 정확한 경비 예측, 환율·항공권·성수기 반영',
+  title: '트립비 | Trip-B - 국가별 여행 경비 계산기',
+  description: '트립비(Trip-B)로 호주, 일본, 태국, 싱가포르 등 국가별 여행 경비를 실시간으로 계산하세요. 블로그 후기 기반 정확한 경비 예측, 환율·항공권·성수기 반영',
   keywords: [
+    '트립비',
+    'Trip-B',
     '여행 경비',
     '여행 비용',
     '호주 여행 경비',
@@ -18,24 +22,28 @@ export const metadata: Metadata = {
     '환율',
     '숙박료',
   ],
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
   openGraph: {
-    title: '여행 경비 계산기 - 국가별 여행 비용 실시간 계산',
+    title: '트립비 | Trip-B - 국가별 여행 경비 실시간 계산',
     description: '블로그 후기 기반 정확한 여행 경비 예측. 환율·항공권·성수기 반영',
     type: 'website',
     url: 'https://tripbuget.my',
-    siteName: 'TripBudget',
+    siteName: '트립비 | Trip-B',
     images: [
       {
         url: 'https://tripbuget.my/og-image.png',
         width: 1200,
         height: 630,
-        alt: '여행 경비 계산기',
+        alt: '트립비 - 여행 경비 계산기',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '여행 경비 계산기',
+    title: '트립비 | Trip-B',
     description: '국가별 여행 비용을 한눈에 계산하세요',
   },
   alternates: {
@@ -83,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
-              name: 'TripBudget - 여행 경비 계산기',
+              name: '트립비 | Trip-B - 여행 경비 계산기',
               description: '국가별 여행 경비를 실시간으로 예측하는 AI 기반 여행 계획 도구',
               url: 'https://tripbuget.my',
               applicationCategory: 'TravelApplication',
@@ -104,9 +112,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="afterInteractive"
         />
         <meta name="google-site-verification" content="your-verification-code" />
+        {/* Google Identity Services */}
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+        />
       </head>
       <body className="min-h-full bg-[#0f1117] text-white antialiased">
-        {children}
+        <AuthProvider>
+          <LangProvider>
+            {children}
+          </LangProvider>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Country } from '@/types/travel';
 import { formatKRWShort, classifyBlogData, ClassifiedBlogEntry } from '@/lib/utils';
+import { useLang } from '@/context/LangContext';
 
 interface BlogPost {
   title: string;
@@ -30,10 +31,10 @@ interface Props {
 
 type DerivedStyle = 'budget' | 'standard' | 'luxury';
 
-const STYLE_INFO: Record<DerivedStyle, { label: string; color: string; bg: string; border: string; val: string }> = {
-  budget:   { label: '알뜰',    color: 'text-emerald-400', bg: 'bg-emerald-900/20', border: 'border-emerald-700/50', val: 'text-emerald-300' },
-  standard: { label: '일반',    color: 'text-indigo-400',  bg: 'bg-indigo-900/20',  border: 'border-indigo-700/50',  val: 'text-indigo-300'  },
-  luxury:   { label: '프리미엄', color: 'text-amber-400',  bg: 'bg-amber-900/20',   border: 'border-amber-700/50',   val: 'text-amber-300'   },
+const STYLE_INFO: Record<DerivedStyle, { color: string; bg: string; border: string; val: string }> = {
+  budget:   { color: 'text-emerald-400', bg: 'bg-emerald-900/20', border: 'border-emerald-700/50', val: 'text-emerald-300' },
+  standard: { color: 'text-indigo-400',  bg: 'bg-indigo-900/20',  border: 'border-indigo-700/50',  val: 'text-indigo-300'  },
+  luxury:   { color: 'text-amber-400',   bg: 'bg-amber-900/20',   border: 'border-amber-700/50',   val: 'text-amber-300'   },
 };
 
 const STYLES: DerivedStyle[] = ['budget', 'standard', 'luxury'];
@@ -44,6 +45,7 @@ function avg(entries: ClassifiedBlogEntry[]) {
 }
 
 export default function BlogPanel({ country, duration, selectedCity }: Props) {
+  const { t } = useLang();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [noApi, setNoApi] = useState(false);
@@ -69,7 +71,7 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
     const q = selectedCity ? `${selectedCity} 여행 관광지` : `${country.nameKR} 여행 관광지`;
     setGLoading(true);
     setGPlaces([]);
-    fetch(`/api/places?q=${encodeURIComponent(q)}&lang=ko`)
+    fetch(`/api/places?q=${encodeURIComponent(q)}&lang=${typeof navigator !== 'undefined' ? navigator.language.slice(0, 2) : 'ko'}`)
       .then(r => r.json())
       .then(data => setGPlaces(data.places || []))
       .catch(() => {})
@@ -92,12 +94,12 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
     <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/60 space-y-4">
       <div>
         <div className="flex items-center justify-between mb-0.5">
-          <h3 className="text-sm font-semibold text-slate-100">실제 여행자 지출 후기</h3>
+          <h3 className="text-sm font-semibold text-slate-100">{t.travelerReviews}</h3>
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400">
-            {selectedCity ? `${selectedCity} · ` : ''}{duration}박 환산 · 지출액 기준 분류
+            {selectedCity ? `${selectedCity} · ` : ''}{duration}{t.nightUnit} {t.nightAdjusted}
           </span>
         </div>
-        <p className="text-[11px] text-slate-500">1박 지출 하위33% → 알뜰, 중간 → 일반, 상위33% → 프리미엄</p>
+        <p className="text-[11px] text-slate-500">{t.styleClassHint}</p>
       </div>
 
       <div className="flex gap-1.5">
@@ -112,9 +114,9 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
                 isActive ? `${info.bg} ${info.border}` : 'border-slate-700/40 hover:border-slate-600'
               }`}
             >
-              <p className={`text-[10px] font-semibold ${isActive ? info.color : 'text-slate-500'}`}>{info.label}</p>
+              <p className={`text-[10px] font-semibold ${isActive ? info.color : 'text-slate-500'}`}>{t.styleLabels[style]}</p>
               <p className={`text-xs font-bold mt-0.5 ${isActive ? info.val : 'text-slate-500'}`}>
-                평균 {formatKRWShort(avgKRW)}원
+                {t.styleAvg} {formatKRWShort(avgKRW)}원
               </p>
             </button>
           );
@@ -141,9 +143,9 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
-                  <span>원본 {d.duration}박 ({formatKRWShort(d.totalKRW)}원) → {duration}박 환산</span>
-                  <span>{d.year}년</span>
-                  <span className="text-slate-500">1박 {formatKRWShort(Math.round(d.perNight))}원</span>
+                  <span>{t.originalEntry} {d.duration}{t.nightUnit} ({formatKRWShort(d.totalKRW)}원) {t.arrowTo} {duration}{t.nightUnit}</span>
+                  <span>{d.year}</span>
+                  <span className="text-slate-500">{t.perNightRate} {formatKRWShort(Math.round(d.perNight))}원</span>
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500">
                   {(() => {
@@ -167,7 +169,7 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
         <div className="space-y-2 pt-2 border-t border-slate-700/50">
           <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500/80" />
-            Google 인기 장소
+            {t.googlePlacesHeader}
           </p>
           {gLoading && (
             <div className="animate-pulse space-y-1.5 p-3 rounded-xl bg-slate-700/30">
@@ -210,7 +212,7 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
 
       {!loading && posts.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-slate-700/50">
-          <p className="text-[11px] text-slate-400 font-medium">최신 네이버 블로그</p>
+          <p className="text-[11px] text-slate-400 font-medium">{t.naverBlogsHeader}</p>
           {posts.map((post, i) => (
             <a
               key={i}
@@ -237,7 +239,7 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
 
       {loading && (
         <div className="space-y-2 pt-2 border-t border-slate-700/50">
-          <p className="text-[11px] text-slate-400">최신 블로그 로딩 중...</p>
+          <p className="text-[11px] text-slate-400">{t.loadingBlogs}</p>
           {[1, 2].map(i => (
             <div key={i} className="animate-pulse space-y-1.5 p-3 rounded-xl bg-slate-700/30">
               <div className="h-3 bg-slate-700 rounded w-3/4" />
@@ -249,7 +251,7 @@ export default function BlogPanel({ country, duration, selectedCity }: Props) {
 
       {noApi && (
         <p className="text-[10px] text-slate-500 pt-1">
-          실시간 블로그 연동: .env.local에 NAVER_CLIENT_ID, NAVER_CLIENT_SECRET 설정
+          {t.naverApiHint}
         </p>
       )}
     </div>

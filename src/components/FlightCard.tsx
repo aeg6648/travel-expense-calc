@@ -2,7 +2,8 @@
 
 import { Country } from '@/types/travel';
 import { getFlightMultiplier, getHolidayInfo } from '@/lib/holidays';
-import { formatKRW, formatKRWShort } from '@/lib/utils';
+import { formatKRWShort } from '@/lib/utils';
+import { useLang } from '@/context/LangContext';
 
 interface Props {
   country: Country;
@@ -10,9 +11,8 @@ interface Props {
   style: 'budget' | 'standard' | 'luxury';
 }
 
-const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-
 export default function FlightCard({ country, departureDate, style }: Props) {
+  const { t } = useLang();
   const flightBase = country.costs[style].breakdown.flight;
   const flightData = country.flight;
   const multiplier = getFlightMultiplier(departureDate, flightData.monthlyMultipliers, flightData.holidayMultiplier);
@@ -27,8 +27,8 @@ export default function FlightCard({ country, departureDate, style }: Props) {
     <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/60 space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-100">항공권 가격 예측</h3>
-          <p className="text-xs text-slate-400">인천 출발 왕복 기준 · {style === 'budget' ? 'LCC' : style === 'standard' ? '일반석' : '프리미엄'}</p>
+          <h3 className="text-sm font-semibold text-slate-100">{t.flightPriceTitle}</h3>
+          <p className="text-xs text-slate-400">{t.flightBasis} · {style === 'budget' ? t.classLCC : style === 'standard' ? t.classEconomy : t.classPremium}</p>
         </div>
         <span className="text-2xl">{country.flag}</span>
       </div>
@@ -43,9 +43,9 @@ export default function FlightCard({ country, departureDate, style }: Props) {
             {holidayInfo.priceMultiplier >= 1.8 ? '🔴' : '🟡'}
           </span>
           <div>
-            <p className="font-semibold">{holidayInfo.name} ({holidayInfo.priceMultiplier}x 가격 상승)</p>
+            <p className="font-semibold">{t.priceRiseUpTo(holidayInfo.name, holidayInfo.priceMultiplier, Math.round((holidayInfo.priceMultiplier - 1) * 100))}</p>
             <p className="opacity-75 mt-0.5">
-              연휴 전후 항공권은 평소보다 최대 {Math.round((holidayInfo.priceMultiplier - 1) * 100)}% 비쌉니다.
+              {t.holidayNote(Math.round((holidayInfo.priceMultiplier - 1) * 100))}
             </p>
           </div>
         </div>
@@ -67,12 +67,12 @@ export default function FlightCard({ country, departureDate, style }: Props) {
           )}
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          비성수기 기준 {formatKRWShort(flightBase)}원 · 현재 계수 {multiplier.toFixed(2)}x
+          {t.offSeasonBase(formatKRWShort(flightBase), multiplier.toFixed(2))}원
         </p>
       </div>
 
       <div>
-        <p className="text-xs text-slate-400 mb-3">월별 항공권 가격 변동</p>
+        <p className="text-xs text-slate-400 mb-3">{t.monthlyPriceChange}</p>
         <div className="relative h-32">
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
             {[0, 1, 2, 3].map(i => (
@@ -104,7 +104,7 @@ export default function FlightCard({ country, departureDate, style }: Props) {
           </div>
         </div>
         <div className="flex mt-1.5">
-          {MONTH_LABELS.map((label, i) => (
+          {t.monthLabels.map((label, i) => (
             <div key={i} className="flex-1 text-center">
               <span className={`text-[9px] leading-none ${
                 new Date(departureDate).getMonth() === i ? 'text-indigo-400 font-bold' : 'text-slate-600'
@@ -115,14 +115,14 @@ export default function FlightCard({ country, departureDate, style }: Props) {
           ))}
         </div>
         <div className="flex items-center gap-4 mt-2 text-[10px] text-slate-500">
-          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" />선택한 달</div>
-          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500/60 inline-block" />성수기</div>
-          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-600/60 inline-block" />일반</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" />{t.selectedMonth}</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500/60 inline-block" />{t.peakSeason}</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-600/60 inline-block" />{t.normalSeason}</div>
         </div>
       </div>
 
       <div>
-        <p className="text-xs text-slate-400 mb-2">항공사별 예상 가격</p>
+        <p className="text-xs text-slate-400 mb-2">{t.airlinePrices}</p>
         <div className="space-y-2">
           {flightData.airlineOptions.map(airline => {
             const price = Math.round(adjustedPrice * airline.priceMultiplier);

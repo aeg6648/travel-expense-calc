@@ -4,6 +4,7 @@ import { Country } from '@/types/travel';
 import { COUNTRIES, REGIONS } from '@/lib/travel-data';
 import { formatKRWShort } from '@/lib/utils';
 import { useState } from 'react';
+import { useLang } from '@/context/LangContext';
 
 interface Props {
   selectedCode: string | null;
@@ -29,6 +30,7 @@ const COUNTRY_PHOTOS: Record<string, { url: string; fallbackFrom: string; fallba
 };
 
 export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
+  const { t } = useLang();
   const [region, setRegion] = useState<string>('전체');
   const [search, setSearch] = useState('');
 
@@ -46,7 +48,7 @@ export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
       <div className="relative">
         <input
           type="text"
-          placeholder="국가, 도시, 태그 검색..."
+          placeholder={t.searchPlaceholder}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -67,7 +69,7 @@ export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
                 : 'bg-slate-700/50 text-slate-400 border border-slate-600 hover:border-slate-500 hover:text-slate-200'
             }`}
           >
-            {r}
+            {t.regionLabels[r as keyof typeof t.regionLabels] ?? r}
           </button>
         ))}
       </div>
@@ -90,7 +92,7 @@ export default function CountryGrid({ selectedCode, onSelect, style }: Props) {
 
       {filtered.length === 0 && (
         <div className="text-center py-8 text-slate-500">
-          <p>검색 결과가 없습니다</p>
+          <p>{t.noSearchResults}</p>
         </div>
       )}
     </div>
@@ -108,6 +110,7 @@ function CountryCard({
   avgCost: number;
   onSelect: () => void;
 }) {
+  const { t } = useLang();
   const photo = COUNTRY_PHOTOS[country.code];
   const fallbackStyle = photo
     ? { background: `linear-gradient(135deg, ${photo.fallbackFrom}, ${photo.fallbackTo})` }
@@ -157,7 +160,7 @@ function CountryCard({
       {/* Content */}
       <div className="p-3 bg-slate-800 flex-1">
         <p className="text-xs font-semibold text-indigo-400 mb-2">
-          평균 {formatKRWShort(avgCost)}원~
+          {t.avgCostFrom(formatKRWShort(avgCost))}
         </p>
         <div className="flex flex-wrap gap-1">
           {country.tags.slice(0, 2).map(tag => (

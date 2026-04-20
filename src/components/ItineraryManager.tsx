@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { COUNTRIES } from '@/lib/travel-data';
+import { useLang } from '@/context/LangContext';
 
 interface Activity {
   id: string;
@@ -39,24 +40,30 @@ interface PlaceSuggestion {
   types: string[];
 }
 
-const TYPE_INFO: Record<Activity['type'], { label: string; icon: string; color: string }> = {
-  flight:        { label: '항공',    icon: '✈️',  color: 'bg-indigo-900/30 border-indigo-700/50 text-indigo-300' },
-  accommodation: { label: '숙박',    icon: '🏨',  color: 'bg-violet-900/30 border-violet-700/50 text-violet-300' },
-  food:          { label: '식사',    icon: '🍽️', color: 'bg-amber-900/30 border-amber-700/50 text-amber-300' },
-  activity:      { label: '액티비티', icon: '🎯',  color: 'bg-emerald-900/30 border-emerald-700/50 text-emerald-300' },
-  transport:     { label: '교통',    icon: '🚌',  color: 'bg-sky-900/30 border-sky-700/50 text-sky-300' },
-  other:         { label: '기타',    icon: '📌',  color: 'bg-slate-700/50 border-slate-600/50 text-slate-300' },
+const TYPE_COLORS: Record<Activity['type'], string> = {
+  flight:        'bg-indigo-900/30 border-indigo-700/50 text-indigo-300',
+  accommodation: 'bg-violet-900/30 border-violet-700/50 text-violet-300',
+  food:          'bg-amber-900/30 border-amber-700/50 text-amber-300',
+  activity:      'bg-emerald-900/30 border-emerald-700/50 text-emerald-300',
+  transport:     'bg-sky-900/30 border-sky-700/50 text-sky-300',
+  other:         'bg-slate-700/50 border-slate-600/50 text-slate-300',
+};
+const TYPE_ICONS: Record<Activity['type'], string> = {
+  flight: '✈️', accommodation: '🏨', food: '🍽️',
+  activity: '🎯', transport: '🚌', other: '📌',
 };
 
-const STORAGE_KEY = 'travel-itineraries';
+function storageKey(userId: string) {
+  return `trip-b-itineraries-${userId}`;
+}
 
-function loadTrips(): Trip[] {
+function loadTrips(userId: string): Trip[] {
   if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  try { return JSON.parse(localStorage.getItem(storageKey(userId)) || '[]'); }
   catch { return []; }
 }
-function saveTrips(trips: Trip[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
+function saveTrips(userId: string, trips: Trip[]) {
+  localStorage.setItem(storageKey(userId), JSON.stringify(trips));
 }
 function tripDays(trip: Trip): number {
   if (!trip.startDate || !trip.endDate) return 1;
@@ -88,19 +95,20 @@ function usePlacesSearch(query: string) {
 }
 
 // ── Main component ──────────────────────────────────────────────────
-export default function ItineraryManager() {
+export default function ItineraryManager({ userId }: { userId: string }) {
+  const { t } = useLang();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
-  useEffect(() => { setTrips(loadTrips()); }, []);
+  useEffect(() => { setTrips(loadTrips(userId)); }, [userId]);
 
-  const persist = (updated: Trip[]) => { setTrips(updated); saveTrips(updated); };
+  const persist = (updated: Trip[]) => { setTrips(updated); saveTrips(userId, updated); };
 
   const deleteTrip = (id: string) => {
-    if (!confirm('이 여행 일정을 삭제할까요?')) return;
+    if (!confirm(t.confirmDelete)) return;
     persist(trips.filter(t => t.id !== id));
     if (selectedTrip?.id === id) { setSelectedTrip(null); setView('list'); }
   };
@@ -136,10 +144,10 @@ export default function ItineraryManager() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <button onClick={() => setView('list')} className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1.5 transition-colors">
-            ← 목록으로
+            {t.back}
           </button>
           <button onClick={() => deleteTrip(selectedTrip.id)} className="text-xs text-red-400 hover:text-red-300 px-2.5 py-1 rounded-lg border border-red-800/50 hover:bg-red-900/20 transition-all">
-            여행 삭제
+            {t.deleteTrip}
           </button>
         </div>
 
@@ -151,7 +159,7 @@ export default function ItineraryManager() {
               <h2 className="text-xl font-bold text-slate-100">{selectedTrip.name}</h2>
               <p className="text-sm text-slate-400">
                 {selectedTrip.startDate && selectedTrip.endDate
-                  ? `${selectedTrip.startDate} ~ ${selectedTrip.endDate} · ${days}박 ${days + 1}일`
+                  ? `${selectedTrip.startDate} ~ ${selectedTrip.endDate} · ${t.nightsDay(days)}`
                   : `${country?.nameKR ?? selectedTrip.countryCode}`}
               </p>
             </div>
@@ -159,9 +167,9 @@ export default function ItineraryManager() {
 
           <div className="flex flex-wrap gap-3">
             {[
-              { label: '예산', value: selectedTrip.budget > 0 ? `${selectedTrip.currency} ${Number(selectedTrip.budget).toLocaleString()}` : '미설정', color: 'text-slate-300' },
-              { label: '지출 합계', value: totalCost > 0 ? `${selectedTrip.currency} ${totalCost.toLocaleString()}` : '—', color: 'text-emerald-400' },
-              ...(selectedTrip.budget > 0 && totalCost > 0 ? [{ label: '예산 사용률', value: `${Math.round((totalCost / selectedTrip.budget) * 100)}%`, color: totalCost > selectedTrip.budget ? 'text-red-400' : 'text-indigo-400' }] : []),
+              { label: t.budget, value: selectedTrip.budget > 0 ? `${selectedTrip.currency} ${Number(selectedTrip.budget).toLocaleString()}` : '—', color: 'text-slate-300' },
+              { label: t.budgetUsed, value: totalCost > 0 ? `${selectedTrip.currency} ${totalCost.toLocaleString()}` : '—', color: 'text-emerald-400' },
+              ...(selectedTrip.budget > 0 && totalCost > 0 ? [{ label: `${Math.round((totalCost / selectedTrip.budget) * 100)}%`, value: '', color: totalCost > selectedTrip.budget ? 'text-red-400' : 'text-indigo-400' }] : []),
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-slate-700/50 rounded-xl px-4 py-2">
                 <p className="text-[11px] text-slate-400">{label}</p>
@@ -186,12 +194,12 @@ export default function ItineraryManager() {
 
         {/* Activity header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-300">여행 일정</h3>
+          <h3 className="text-sm font-semibold text-slate-300">{t.modeItinerary}</h3>
           <button
             onClick={() => { setEditingActivity(null); setShowActivityForm(v => !v); }}
             className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
           >
-            {showActivityForm ? '닫기' : '+ 일정 추가'}
+            {showActivityForm ? t.cancel : t.addActivity}
           </button>
         </div>
 
@@ -223,7 +231,7 @@ export default function ItineraryManager() {
                   {selectedTrip.startDate && (() => {
                     const d = new Date(selectedTrip.startDate);
                     d.setDate(d.getDate() + day - 1);
-                    return <span className="text-slate-500 ml-1.5">{d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>;
+                    return <span className="text-slate-500 ml-1.5">{d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>;
                   })()}
                 </span>
                 <div className="flex-1 h-px bg-slate-700/60" />
@@ -232,13 +240,14 @@ export default function ItineraryManager() {
                 </span>
               </div>
 
-              {dayActs.length === 0 && <p className="text-xs text-slate-600 pl-3">일정 없음 — 위에서 추가하세요</p>}
+              {dayActs.length === 0 && <p className="text-xs text-slate-600 pl-3">{t.noTripsHint}</p>}
 
               {dayActs.map(act => {
-                const info = TYPE_INFO[act.type];
+                const actColor = TYPE_COLORS[act.type];
+                const actIcon = TYPE_ICONS[act.type];
                 return (
-                  <div key={act.id} className={`p-3 rounded-xl border ${info.color} flex items-start gap-3`}>
-                    <span className="text-lg mt-0.5 shrink-0">{info.icon}</span>
+                  <div key={act.id} className={`p-3 rounded-xl border ${actColor} flex items-start gap-3`}>
+                    <span className="text-lg mt-0.5 shrink-0">{actIcon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -264,11 +273,11 @@ export default function ItineraryManager() {
                       <button
                         onClick={() => { setEditingActivity(act); setShowActivityForm(true); }}
                         className="text-[10px] text-slate-500 hover:text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-all"
-                      >수정</button>
+                      >{t.editTrip}</button>
                       <button
                         onClick={() => deleteActivity(act.id)}
                         className="text-[10px] text-red-500 hover:text-red-400 px-1.5 py-0.5 rounded border border-red-900/50 hover:border-red-700 transition-all"
-                      >삭제</button>
+                      >{t.deleteTrip}</button>
                     </div>
                   </div>
                 );
@@ -295,22 +304,22 @@ export default function ItineraryManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-slate-100">내 여행 일정</h2>
-          <p className="text-xs text-slate-500 mt-0.5">저장된 여행 계획 {trips.length}개</p>
+          <h2 className="text-base font-semibold text-slate-100">{t.itineraryTitle}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{trips.length} {t.totalActivities}</p>
         </div>
         <button
           onClick={() => setView('create')}
           className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
         >
-          + 새 여행 만들기
+          {t.newTrip}
         </button>
       </div>
 
       {trips.length === 0 && (
         <div className="text-center py-16 bg-slate-800/50 rounded-2xl border border-slate-700/60">
           <p className="text-4xl mb-3">📅</p>
-          <p className="text-sm text-slate-400">저장된 여행 일정이 없어요</p>
-          <p className="text-xs mt-1 text-slate-500">새 여행을 만들어 일정과 예산을 관리해 보세요</p>
+          <p className="text-sm text-slate-400">{t.noTrips}</p>
+          <p className="text-xs mt-1 text-slate-500">{t.noTripsHint}</p>
         </div>
       )}
 
@@ -329,12 +338,12 @@ export default function ItineraryManager() {
                 <span className="text-2xl">{country?.flag ?? '🌍'}</span>
                 <div>
                   <p className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">{trip.name}</p>
-                  <p className="text-xs text-slate-400">{country?.nameKR ?? trip.countryCode} · {days}박 {days + 1}일</p>
+                  <p className="text-xs text-slate-400">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
                 </div>
               </div>
               <p className="text-xs text-slate-500 mb-3">{trip.startDate} ~ {trip.endDate}</p>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">{trip.activities.length}개 일정</span>
+                <span className="text-slate-400">{trip.activities.length} {t.totalActivities}</span>
                 {trip.budget > 0 && (
                   <span className="text-slate-400">{trip.currency} {totalCost.toLocaleString()} / {Number(trip.budget).toLocaleString()}</span>
                 )}
@@ -356,7 +365,8 @@ export default function ItineraryManager() {
 }
 
 // ── Create trip form ────────────────────────────────────────────────
-function CreateTripForm({ onSave, onCancel }: { onSave: (t: Trip) => void; onCancel: () => void }) {
+function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; onCancel: () => void }) {
+  const { t } = useLang();
   const [name, setName] = useState('');
   const [countryCode, setCountryCode] = useState('JP');
   const [startDate, setStartDate] = useState('');
@@ -366,7 +376,7 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (t: Trip) => void; onCan
   const [notes, setNotes] = useState('');
 
   const handleSave = () => {
-    if (!name.trim()) { alert('여행 이름을 입력하세요'); return; }
+    if (!name.trim()) { alert(t.tripName); return; }
     onSave({
       id: crypto.randomUUID(),
       name: name.trim(), countryCode, startDate, endDate,
@@ -379,45 +389,45 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (t: Trip) => void; onCan
   return (
     <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700/60 space-y-4 max-w-lg">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-100">새 여행 만들기</h2>
+        <h2 className="text-base font-semibold text-slate-100">{t.createTrip}</h2>
         <button onClick={onCancel} className="text-slate-500 hover:text-slate-300">✕</button>
       </div>
 
-      <Field label="여행 이름">
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="예: 2025 오사카 여행" className={inputCls} />
+      <Field label={t.tripName}>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={t.tripNamePlaceholder} className={inputCls} />
       </Field>
 
-      <Field label="여행 국가">
+      <Field label={t.tripCountry}>
         <select value={countryCode} onChange={e => setCountryCode(e.target.value)} className={inputCls}>
           {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.nameKR}</option>)}
         </select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="출발일">
+        <Field label={t.startDate}>
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
         </Field>
-        <Field label="귀국일">
+        <Field label={t.endDate}>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
         </Field>
       </div>
 
-      <Field label="예산 (선택)">
+      <Field label={t.budget}>
         <div className="flex gap-2">
           <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputCls} w-auto`}>
             {['KRW','USD','EUR','JPY','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="금액" className={`${inputCls} flex-1`} />
+          <input type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="0" className={`${inputCls} flex-1`} />
         </div>
       </Field>
 
-      <Field label="메모 (선택)">
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="여행 메모..." rows={2} className={`${inputCls} resize-none`} />
+      <Field label={t.notes}>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t.notesPlaceholder} rows={2} className={`${inputCls} resize-none`} />
       </Field>
 
       <div className="flex gap-2 pt-1">
-        <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm hover:bg-slate-700 transition-colors">취소</button>
-        <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors">만들기</button>
+        <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm hover:bg-slate-700 transition-colors">{t.cancel}</button>
+        <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors">{t.save}</button>
       </div>
     </div>
   );
@@ -434,6 +444,7 @@ function ActivityForm({
   onSave: (act: Omit<Activity, 'id'>) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLang();
   const [day, setDay] = useState(editing?.day ?? 1);
   const [time, setTime] = useState(editing?.time ?? '');
   const [title, setTitle] = useState(editing?.title ?? '');
@@ -485,38 +496,38 @@ function ActivityForm({
 
   return (
     <div className="rounded-2xl p-4 border border-indigo-700/40 bg-indigo-900/10 space-y-3">
-      <h3 className="text-sm font-semibold text-slate-200">{editing ? '일정 수정' : '일정 추가'}</h3>
+      <h3 className="text-sm font-semibold text-slate-200">{editing ? t.editTrip : t.addActivity}</h3>
 
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <label className="text-[11px] text-slate-400 block mb-1">Day</label>
+          <label className="text-[11px] text-slate-400 block mb-1">{t.activityDay}</label>
           <select value={day} onChange={e => setDay(Number(e.target.value))} className={inputSmCls}>
-            {Array.from({ length: days }, (_, i) => i + 1).map(d => <option key={d} value={d}>Day {d}</option>)}
+            {Array.from({ length: days }, (_, i) => i + 1).map(d => <option key={d} value={d}>{t.dayLabel(d)}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-[11px] text-slate-400 block mb-1">시간</label>
+          <label className="text-[11px] text-slate-400 block mb-1">{t.activityTime}</label>
           <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputSmCls} />
         </div>
         <div>
-          <label className="text-[11px] text-slate-400 block mb-1">종류</label>
+          <label className="text-[11px] text-slate-400 block mb-1">{t.activityType}</label>
           <select value={type} onChange={e => setType(e.target.value as Activity['type'])} className={inputSmCls}>
-            {(Object.keys(TYPE_INFO) as Activity['type'][]).map(t => (
-              <option key={t} value={t}>{TYPE_INFO[t].icon} {TYPE_INFO[t].label}</option>
+            {(Object.keys(TYPE_ICONS) as Activity['type'][]).map(k => (
+              <option key={k} value={k}>{TYPE_ICONS[k]} {t.activityTypes[k]}</option>
             ))}
           </select>
         </div>
       </div>
 
       <div>
-        <label className="text-[11px] text-slate-400 block mb-1">장소 검색 (Google)</label>
+        <label className="text-[11px] text-slate-400 block mb-1">{t.locationSearch}</label>
         <div className="relative" ref={searchRef}>
           <div className="relative">
             <input
               value={locationQuery}
               onChange={e => { setLocationQuery(e.target.value); setLocationConfirmed(''); setShowSuggestions(true); }}
               onFocus={() => locationQuery.length >= 2 && setShowSuggestions(true)}
-              placeholder={`장소 검색... (예: 도쿄 타워)`}
+              placeholder={t.locationPlaceholder}
               className={`${inputSmCls} pr-7`}
             />
             {loading && (
@@ -545,7 +556,7 @@ function ActivityForm({
                         <p className="text-[10px] text-amber-400">★ {p.rating}</p>
                       )}
                       {p.userRatingsTotal && (
-                        <p className="text-[10px] text-slate-500">{p.userRatingsTotal.toLocaleString()}개 리뷰</p>
+                        <p className="text-[10px] text-slate-500">{t.reviewCount(p.userRatingsTotal)}</p>
                       )}
                     </div>
                   </div>
@@ -557,13 +568,13 @@ function ActivityForm({
       </div>
 
       <div>
-        <label className="text-[11px] text-slate-400 block mb-1">일정 제목</label>
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 도쿄 타워 방문" className={inputSmCls} />
+        <label className="text-[11px] text-slate-400 block mb-1">{t.activityTitle}</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t.activityTitlePlaceholder} className={inputSmCls} />
       </div>
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="text-[11px] text-slate-400 block mb-1">비용</label>
+          <label className="text-[11px] text-slate-400 block mb-1">{t.activityCost}</label>
           <div className="flex gap-1">
             <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputSmCls} w-auto`}>
               {['KRW','USD','EUR','JPY','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
@@ -574,17 +585,17 @@ function ActivityForm({
       </div>
 
       <div>
-        <label className="text-[11px] text-slate-400 block mb-1">메모</label>
-        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="메모..." className={inputSmCls} />
+        <label className="text-[11px] text-slate-400 block mb-1">{t.activityNotes}</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t.activityNotesPlaceholder} className={inputSmCls} />
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-slate-600 text-slate-300 text-xs hover:bg-slate-700 transition-colors">취소</button>
+        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-slate-600 text-slate-300 text-xs hover:bg-slate-700 transition-colors">{t.cancel}</button>
         <button
           onClick={handleSave}
           disabled={!title.trim()}
           className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-medium transition-colors"
-        >저장</button>
+        >{t.save}</button>
       </div>
     </div>
   );
