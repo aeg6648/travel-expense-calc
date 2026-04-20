@@ -10,6 +10,7 @@ import { useLang } from '@/context/LangContext';
 import { useAuth } from '@/context/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import TripBLogo from '@/components/TripBLogo';
+import HeroBackground from '@/components/HeroBackground';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -279,10 +280,11 @@ export default function Home() {
 
       <main>
         {/* ── Hero ── */}
-        <div className="relative bg-gradient-to-b from-slate-800/60 to-slate-900 pt-10 pb-8 px-4">
-          {/* Background glow */}
+        <div className="relative bg-slate-900 pt-10 pb-8 px-4 overflow-hidden">
+          <HeroBackground />
+          {/* Soft glow over the background for extra depth */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-600/8 rounded-full blur-3xl" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-600/10 rounded-full blur-3xl" />
           </div>
 
           <div className="relative max-w-3xl mx-auto text-center">
