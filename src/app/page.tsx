@@ -266,6 +266,75 @@ export default function Home() {
           {/* Country mode — no selection */}
           {mode === 'country' && !selectedCode && (
             <div className="space-y-6">
+              <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700/60 space-y-4">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t.travelConditions}</h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-300 block mb-2">{t.travelStyle}</label>
+                    <div className="flex gap-2">
+                      {(['budget', 'standard', 'luxury'] as TravelStyle[]).map(s => {
+                        const glassMap: Record<string, { border: string; text: string; bg: string }> = {
+                          budget:   { bg: 'rgba(16,185,129,0.12)',  border: 'rgba(16,185,129,0.35)', text: '#6ee7b7' },
+                          standard: { bg: 'rgba(99,102,241,0.12)',  border: 'rgba(99,102,241,0.35)', text: '#a5b4fc' },
+                          luxury:   { bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)', text: '#fcd34d' },
+                        };
+                        const g = glassMap[s];
+                        const isActive = style === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => setStyle(s)}
+                            className="flex-1 py-2 rounded-xl text-xs font-medium transition-all border"
+                            style={isActive
+                              ? { backgroundColor: g.bg, color: g.text, borderColor: g.border }
+                              : { backgroundColor: 'rgba(255,255,255,0.04)', color: '#94a3b8', borderColor: '#334155' }
+                            }
+                          >
+                            {t.styleLabels[s]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-xs font-medium text-slate-300">{t.duration}</label>
+                      <span className="text-sm font-semibold text-slate-400">{t.nightsDay(duration)}</span>
+                    </div>
+                    <input
+                      type="range" min={2} max={14} value={duration}
+                      onChange={e => setDuration(Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                      <span>2{t.nightUnit}</span><span>7{t.nightUnit}</span><span>14{t.nightUnit}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-slate-300 block mb-2">{t.departureDate}</label>
+                    <input
+                      type="date"
+                      value={departureDate}
+                      onChange={e => setDepartureDate(e.target.value)}
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    {holidayInfo && (
+                      <div className={`mt-2 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg ${
+                        holidayInfo.priceMultiplier >= 1.8
+                          ? 'bg-red-900/30 text-red-400 border border-red-800/50'
+                          : 'bg-amber-900/30 text-amber-400 border border-amber-800/50'
+                      }`}>
+                        <span>{holidayInfo.priceMultiplier >= 1.8 ? '🔴' : '🟡'}</span>
+                        <span>{holidayInfo.name} — 항공 {Math.round((holidayInfo.priceMultiplier - 1) * 100)}% 상승</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} />
             </div>
           )}
