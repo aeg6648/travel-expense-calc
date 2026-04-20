@@ -1,7 +1,9 @@
 'use client';
 
-// Evocative travel photos that quietly rotate behind the hero title.
-// Each image is visible ~5s with a ~1s crossfade and subtle Ken Burns zoom.
+import { useState, useEffect } from 'react';
+
+// Evocative travel photos. One is chosen at random on each page load and
+// stays for the whole session — no in-page rotation.
 const IMAGES = [
   'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=1600&q=80&auto=format&fit=crop', // Paris
   'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1600&q=80&auto=format&fit=crop', // Tokyo / Kyoto
@@ -9,40 +11,48 @@ const IMAGES = [
   'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1600&q=80&auto=format&fit=crop', // Bali
   'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=1600&q=80&auto=format&fit=crop', // Swiss Alps
   'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1600&q=80&auto=format&fit=crop', // New York
+  'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=1600&q=80&auto=format&fit=crop', // Sydney harbour
+  'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=1600&q=80&auto=format&fit=crop', // Istanbul
+  'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1600&q=80&auto=format&fit=crop', // Rome
+  'https://images.unsplash.com/photo-1528127269322-539801943592?w=1600&q=80&auto=format&fit=crop', // Vietnam
 ];
 
-const CYCLE_SECONDS = IMAGES.length * 6;
-
 export default function HeroBackground() {
+  // Start with null so SSR and hydration don't try to pick a random image
+  // (that would cause a hydration mismatch). On mount we pick one.
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSrc(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
+  }, []);
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      {IMAGES.map((src, i) => (
+      {src && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={src}
           src={src}
           alt=""
-          loading={i === 0 ? 'eager' : 'lazy'}
-          className="hero-slide absolute inset-0 w-full h-full object-cover"
-          style={{ animationDelay: `${i * 6}s` }}
+          className="hero-photo absolute inset-0 w-full h-full object-cover"
         />
-      ))}
-      {/* Readability overlay: dark top + bottom, slightly tinted indigo */}
+      )}
+      {/* Readability overlay: dark + subtle indigo/sky tint */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/55 to-slate-900" />
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/40 via-transparent to-sky-950/30" />
 
       <style jsx>{`
-        .hero-slide {
+        .hero-photo {
           opacity: 0;
-          animation: hero-slide-fade ${CYCLE_SECONDS}s infinite;
+          animation: hero-fade-in 1.2s ease-out forwards, hero-drift 30s ease-out forwards;
           will-change: opacity, transform;
         }
-        @keyframes hero-slide-fade {
-          0%   { opacity: 0; transform: scale(1.04); }
-          5%   { opacity: 1; transform: scale(1.02); }
-          ${Math.round((100 / IMAGES.length) - 1)}% { opacity: 1; transform: scale(1.0); }
-          ${Math.round(100 / IMAGES.length)}% { opacity: 0; transform: scale(1.0); }
-          100% { opacity: 0; transform: scale(1.04); }
+        @keyframes hero-fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes hero-drift {
+          from { transform: scale(1.06); }
+          to   { transform: scale(1.0); }
         }
       `}</style>
     </div>
