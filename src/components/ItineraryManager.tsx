@@ -96,7 +96,7 @@ function usePlacesSearch(query: string) {
 
 // ── Main component ──────────────────────────────────────────────────
 export default function ItineraryManager({ userId }: { userId: string }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -338,7 +338,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
                 <span className="text-2xl">{country?.flag ?? '🌍'}</span>
                 <div>
                   <p className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">{trip.name}</p>
-                  <p className="text-xs text-slate-400">{country?.nameKR ?? trip.countryCode} · {t.nightsDay(days)}</p>
+                  <p className="text-xs text-slate-400">{(lang === 'ko' ? country?.nameKR : country?.name) ?? trip.countryCode} · {t.nightsDay(days)}</p>
                 </div>
               </div>
               <p className="text-xs text-slate-500 mb-3">{trip.startDate} ~ {trip.endDate}</p>
@@ -366,7 +366,7 @@ export default function ItineraryManager({ userId }: { userId: string }) {
 
 // ── Create trip form ────────────────────────────────────────────────
 function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; onCancel: () => void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [name, setName] = useState('');
   const [countryCode, setCountryCode] = useState('JP');
   const [startDate, setStartDate] = useState('');
@@ -380,7 +380,7 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
     onSave({
       id: crypto.randomUUID(),
       name: name.trim(), countryCode, startDate, endDate,
-      budget: Number(budget.replace(/,/g, '')) || 0, currency,
+      budget: currency === 'KRW' ? (Number(budget) || 0) * 10000 : (Number(budget) || 0), currency,
       notes: notes.trim(), activities: [],
       createdAt: new Date().toISOString(),
     });
@@ -399,7 +399,7 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
 
       <Field label={t.tripCountry}>
         <select value={countryCode} onChange={e => setCountryCode(e.target.value)} className={inputCls}>
-          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.nameKR}</option>)}
+          {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {lang === 'ko' ? c.nameKR : c.name}</option>)}
         </select>
       </Field>
 
@@ -414,35 +414,33 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
 
       <Field label={t.budget}>
         <div className="flex gap-2 mb-2">
-          <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputCls} w-24 shrink-0`}>
+          <select value={currency} onChange={e => { setCurrency(e.target.value); setBudget(''); }} className={`${inputCls} w-24 shrink-0`}>
             {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={budget === '' ? '' : Number(budget).toLocaleString()}
-            onChange={e => {
-              const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
-              setBudget(raw);
-            }}
-            placeholder="0"
-            className={`${inputCls} flex-1 text-right font-mono`}
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={budget}
+              onChange={e => setBudget(e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="0"
+              className={`${inputCls} w-full ${currency === 'KRW' ? 'pr-12' : ''} text-right font-mono`}
+            />
+            {currency === 'KRW' && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none font-medium">만원</span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(currency === 'KRW'
-            ? [500000, 1000000, 1500000, 2000000, 3000000, 5000000]
+            ? [50, 100, 150, 200, 300, 500]
             : currency === 'JPY'
             ? [50000, 100000, 150000, 200000, 300000, 500000]
             : [500, 1000, 1500, 2000, 3000, 5000]
-          ).map(amt => (
-            <button
-              key={amt}
-              type="button"
-              onClick={() => setBudget(String(amt))}
-              className="px-2.5 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 transition-colors"
-            >
-              {currency === 'KRW' ? `${amt / 10000}만원` : currency === 'JPY' ? `${amt / 10000}万` : `${amt}`}
+          ).map(v => (
+            <button key={v} type="button" onClick={() => setBudget(String(v))}
+              className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${budget === String(v) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600'}`}>
+              {currency === 'KRW' ? `${v}만원` : currency === 'JPY' ? `${v/10000}万` : `${v}`}
             </button>
           ))}
         </div>
@@ -479,7 +477,9 @@ function ActivityForm({
   const [locationConfirmed, setLocationConfirmed] = useState(editing?.location ?? '');
   const [locationPlaceId, setLocationPlaceId] = useState(editing?.locationPlaceId ?? '');
   const [rating, setRating] = useState(editing?.rating);
-  const [cost, setCost] = useState(String(editing?.cost ?? ''));
+  // KRW는 만원 단위로 표시 (내부 저장은 원 단위)
+  const toDisplay = (rawKRW: number, cur: string) => cur === 'KRW' ? String(rawKRW / 10000) : String(rawKRW);
+  const [cost, setCost] = useState(editing ? toDisplay(editing.cost, editing.currency) : '');
   const [currency, setCurrency] = useState(editing?.currency ?? defaultCurrency);
   const [type, setType] = useState<Activity['type']>(editing?.type ?? 'activity');
   const [notes, setNotes] = useState(editing?.notes ?? '');
@@ -516,7 +516,7 @@ function ActivityForm({
       day, time, title: title.trim(),
       location: locationConfirmed || locationQuery,
       locationPlaceId, rating,
-      cost: Number(cost) || 0, currency, type,
+      cost: currency === 'KRW' ? (Number(cost) || 0) * 10000 : (Number(cost) || 0), currency, type,
       notes,
     });
   };
@@ -602,24 +602,26 @@ function ActivityForm({
       <div>
         <label className="text-[11px] text-slate-400 block mb-1">{t.activityCost}</label>
         <div className="flex gap-1.5 mb-1.5">
-          <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputSmCls} w-20 shrink-0`}>
+          <select value={currency} onChange={e => { setCurrency(e.target.value); setCost(''); }} className={`${inputSmCls} w-20 shrink-0`}>
             {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={cost === '' ? '' : Number(cost).toLocaleString()}
-            onChange={e => {
-              const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
-              setCost(raw);
-            }}
-            placeholder="0"
-            className={`${inputSmCls} flex-1 text-right font-mono`}
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={cost}
+              onChange={e => setCost(e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder={currency === 'KRW' ? '0' : '0'}
+              className={`${inputSmCls} w-full ${currency === 'KRW' ? 'pr-10' : ''} text-right font-mono`}
+            />
+            {currency === 'KRW' && (
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none font-medium">만원</span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-1">
           {(currency === 'KRW'
-            ? [10000, 30000, 50000, 100000, 200000, 500000]
+            ? [1, 3, 5, 10, 20, 50, 100]
             : currency === 'JPY'
             ? [1000, 3000, 5000, 10000, 30000, 50000]
             : [10, 30, 50, 100, 200, 500]
@@ -630,16 +632,13 @@ function ActivityForm({
               onClick={() => setCost(String((Number(cost) || 0) + amt))}
               className="px-2 py-0.5 text-[10px] rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 transition-colors"
             >
-              +{amt >= 10000 ? `${amt / 10000}만` : amt.toLocaleString()}
+              +{currency === 'KRW' ? `${amt}만` : currency === 'JPY' && amt >= 10000 ? `${amt/10000}万` : amt.toLocaleString()}
             </button>
           ))}
           {cost !== '' && cost !== '0' && (
-            <button
-              type="button"
-              onClick={() => setCost('')}
-              className="px-2 py-0.5 text-[10px] rounded-md bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 transition-colors"
-            >
-              초기화
+            <button type="button" onClick={() => setCost('')}
+              className="px-2 py-0.5 text-[10px] rounded-md bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 transition-colors">
+              ✕
             </button>
           )}
         </div>

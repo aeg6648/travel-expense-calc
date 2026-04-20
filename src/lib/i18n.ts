@@ -177,6 +177,9 @@ const translations = {
     locationPlaceholder: '장소 이름',
     activityNotesPlaceholder: '메모',
     dayLabel: (d: number) => `${d}일차`,
+    loginRequired: '로그인이 필요합니다',
+    loginDesc: '내 여행 일정을 저장하고 관리하려면 Google 계정으로 로그인하세요.',
+    loginWithGoogle: 'Google로 로그인',
   },
 
   en: {
@@ -340,6 +343,9 @@ const translations = {
     locationPlaceholder: 'Place name',
     activityNotesPlaceholder: 'Notes',
     dayLabel: (d: number) => `Day ${d}`,
+    loginRequired: 'Sign in required',
+    loginDesc: 'Sign in with your Google account to save and manage your itineraries.',
+    loginWithGoogle: 'Sign in with Google',
   },
 
   ja: {
@@ -503,6 +509,9 @@ const translations = {
     locationPlaceholder: '場所名',
     activityNotesPlaceholder: 'メモ',
     dayLabel: (d: number) => `${d}日目`,
+    loginRequired: 'ログインが必要です',
+    loginDesc: 'Google アカウントでログインして旅程を保存・管理してください。',
+    loginWithGoogle: 'Google でログイン',
   },
 
   zh: {
@@ -666,6 +675,9 @@ const translations = {
     locationPlaceholder: '地点名称',
     activityNotesPlaceholder: '备注',
     dayLabel: (d: number) => `第${d}天`,
+    loginRequired: '需要登录',
+    loginDesc: '请使用 Google 帐户登录，以保存和管理您的旅行行程。',
+    loginWithGoogle: '使用 Google 登录',
   },
 } as const;
 

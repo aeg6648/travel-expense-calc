@@ -73,8 +73,14 @@ export default function Home() {
     setSelectedCity(null);
     setMode('country');
     setTimeout(() => {
-      document.getElementById('country-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+      const el = document.getElementById('cost-detail');
+      if (el) {
+        const top = el.getBoundingClientRect().top + window.scrollY - 72;
+        window.scrollTo({ top, behavior: 'smooth' });
+      } else {
+        document.getElementById('country-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 200);
   }, []);
 
   const handleModeChange = (m: Mode) => {
@@ -344,7 +350,7 @@ export default function Home() {
               </div>
 
               {/* Middle: detail */}
-              <div className="space-y-5">
+              <div id="cost-detail" className="space-y-5">
                 <CostSummaryCard
                   country={selectedCountry}
                   style={style}
@@ -400,10 +406,8 @@ export default function Home() {
                   📅
                 </div>
                 <div className="text-center">
-                  <h2 className="text-xl font-bold text-slate-100 mb-2">로그인이 필요합니다</h2>
-                  <p className="text-slate-400 text-sm max-w-xs">
-                    내 여행 일정을 저장하고 관리하려면<br />Google 계정으로 로그인하세요.
-                  </p>
+                  <h2 className="text-xl font-bold text-slate-100 mb-2">{t.loginRequired}</h2>
+                  <p className="text-slate-400 text-sm max-w-xs">{t.loginDesc}</p>
                 </div>
                 <button
                   onClick={signIn}
@@ -415,15 +419,15 @@ export default function Home() {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  Google로 로그인
+                  {t.loginWithGoogle}
                 </button>
               </div>
             )
           )}
         </div>
 
-        {/* SEO text - bottom */}
-        {mode === 'budget' && !selectedCode && (
+        {/* SEO text - bottom (ko only) */}
+        {mode === 'budget' && !selectedCode && lang === 'ko' && (
           <div className="max-w-5xl mx-auto px-4 pb-12">
             <SeoSection />
           </div>

@@ -110,7 +110,7 @@ function CountryCard({
   avgCost: number;
   onSelect: () => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const photo = COUNTRY_PHOTOS[country.code];
   const fallbackStyle = photo
     ? { background: `linear-gradient(135deg, ${photo.fallbackFrom}, ${photo.fallbackTo})` }
@@ -148,9 +148,9 @@ function CountryCard({
         {/* 하단: 국가명 + 지역 */}
         <div className="absolute bottom-0 left-0 right-0 px-3 py-2.5">
           <p className="font-bold text-white text-sm leading-tight" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-            {country.nameKR}
+            {lang === 'ko' ? country.nameKR : country.name}
           </p>
-          <p className="text-white/70 text-[10px] mt-0.5">{country.region}</p>
+          <p className="text-white/70 text-[10px] mt-0.5">{t.regionLabels[country.region as keyof typeof t.regionLabels] ?? country.region}</p>
         </div>
         {isSelected && (
           <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white font-bold shadow">✓</span>
