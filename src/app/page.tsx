@@ -12,6 +12,8 @@ import GoogleSignInButton from '@/components/GoogleSignInButton';
 import TripBLogo from '@/components/TripBLogo';
 import HeroBackground from '@/components/HeroBackground';
 import CelebrityPanel from '@/components/CelebrityPanel';
+import HotCoursesPanel from '@/components/HotCoursesPanel';
+import TravelTipsPanel from '@/components/TravelTipsPanel';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -303,22 +305,22 @@ export default function Home() {
             </p>
 
             {/* ── Vibes — experience-first mood pills ── */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-none justify-start sm:justify-center">
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-none justify-start sm:justify-center">
               {[
-                { emoji: '🍜', label: '로컬 미식' },
-                { emoji: '🎨', label: '예술·갤러리' },
-                { emoji: '🏄', label: '액티비티' },
-                { emoji: '📸', label: '포토제닉' },
-                { emoji: '🌿', label: '힐링' },
-                { emoji: '🌃', label: '야경·나이트' },
-                { emoji: '🛍️', label: '쇼핑 트립' },
-                { emoji: '⛺', label: '로드트립' },
+                { emoji: '🍜', label: '로컬 미식', from: 'from-amber-500/35',  to: 'to-rose-500/25' },
+                { emoji: '🎨', label: '예술·갤러리', from: 'from-violet-500/35', to: 'to-indigo-500/25' },
+                { emoji: '🏄', label: '액티비티',  from: 'from-cyan-500/35',   to: 'to-emerald-500/25' },
+                { emoji: '📸', label: '포토제닉',  from: 'from-pink-500/35',   to: 'to-fuchsia-500/25' },
+                { emoji: '🌿', label: '힐링',      from: 'from-emerald-500/35', to: 'to-teal-500/25' },
+                { emoji: '🌃', label: '야경·나이트', from: 'from-slate-500/40', to: 'to-indigo-500/25' },
+                { emoji: '🛍️', label: '쇼핑 트립',  from: 'from-pink-500/30',  to: 'to-amber-500/25' },
+                { emoji: '⛺', label: '로드트립',   from: 'from-orange-500/35', to: 'to-red-500/25' },
               ].map(v => (
                 <span
                   key={v.label}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur border border-white/15 text-xs font-medium text-white/90 hover:bg-white/15 hover:border-white/30 transition-all cursor-default"
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-br ${v.from} ${v.to} backdrop-blur border border-white/25 text-xs font-semibold text-white hover:border-white/45 hover:scale-[1.04] transition-all cursor-default shadow-md shadow-black/20`}
                 >
-                  <span>{v.emoji}</span>
+                  <span className="text-sm">{v.emoji}</span>
                   <span>{v.label}</span>
                 </span>
               ))}
@@ -387,8 +389,10 @@ export default function Home() {
 
         {/* ── Content (with celebrity sidebar on wide screens) ── */}
         <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-6">
-          <aside className="hidden xl:block sticky top-24 self-start">
+          <aside className="hidden xl:block sticky top-24 self-start space-y-4">
             <CelebrityPanel />
+            <HotCoursesPanel />
+            <TravelTipsPanel />
           </aside>
 
           <div>
