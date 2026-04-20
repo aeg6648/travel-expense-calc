@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { TravelStyle } from '@/types/travel';
 import { getCountryByCode } from '@/lib/travel-data';
@@ -486,12 +487,13 @@ export default function Home() {
             </div>
           )}
 
-          {/* Country mode — country selected */}
+          {/* Country mode — country selected: rendered as a full-screen modal
+              via portal so it ignores the sidebar layout that was squeezing it. */}
           {mode === 'country' && selectedCode && selectedCountry && (
-            <div id="country-detail" className="grid grid-cols-1 lg:grid-cols-[300px_1fr_280px] gap-6">
-              {/* Left: filters + grid */}
-              <div className="space-y-4">
-                {/* Back button */}
+            <CountryDetailModal onClose={() => setSelectedCode(null)}>
+              {/* Back + settings header (horizontal on wide, stacked on mobile) */}
+              <div className="flex items-start gap-4 flex-col lg:flex-row">
+                <div className="lg:w-[320px] shrink-0 space-y-4 w-full">
                 <button
                   onClick={() => setSelectedCode(null)}
                   className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
@@ -624,54 +626,45 @@ export default function Home() {
                 </div>
 
                 <CountryGrid selectedCode={selectedCode} onSelect={handleSelectCountry} style={style} vibeId={activeVibe} onClearVibe={() => setActiveVibe(null)} />
-                <AdBanner slot="1111111111" format="rectangle" />
-              </div>
+                </div>
 
-              {/* Middle: detail */}
-              <div id="cost-detail" className="space-y-5">
-                <CostSummaryCard
-                  country={selectedCountry}
-                  style={style}
-                  duration={duration}
-                  departureDate={departureDate}
-                  currentKrwPerUsd={krwPerUsd}
-                  selectedCity={selectedCity}
-                  onStyleChange={setStyle}
-                />
-                <AdBanner slot="2222222222" format="horizontal" />
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                  <CostBandChart
+                {/* Middle: detail — takes the remaining space */}
+                <div id="cost-detail" className="flex-1 min-w-0 space-y-5">
+                  <CostSummaryCard
                     country={selectedCountry}
                     style={style}
                     duration={duration}
+                    departureDate={departureDate}
                     currentKrwPerUsd={krwPerUsd}
                     selectedCity={selectedCity}
+                    onStyleChange={setStyle}
                   />
-                  <div className="space-y-5">
-                    <HistoricalChart
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                    <CostBandChart
                       country={selectedCountry}
+                      style={style}
                       duration={duration}
                       currentKrwPerUsd={krwPerUsd}
-                      allRates={allRates}
+                      selectedCity={selectedCity}
                     />
-                    <FlightCard
-                      country={selectedCountry}
-                      departureDate={departureDate}
-                      style={style}
-                    />
+                    <div className="space-y-5">
+                      <HistoricalChart
+                        country={selectedCountry}
+                        duration={duration}
+                        currentKrwPerUsd={krwPerUsd}
+                        allRates={allRates}
+                      />
+                      <FlightCard
+                        country={selectedCountry}
+                        departureDate={departureDate}
+                        style={style}
+                      />
+                    </div>
                   </div>
-                </div>
-                <BlogPanel country={selectedCountry} duration={duration} selectedCity={selectedCity} />
-                <AdBanner slot="3333333333" format="horizontal" />
-              </div>
-
-              {/* Right sidebar: ad */}
-              <div className="hidden lg:block">
-                <div className="sticky top-20">
-                  <AdBanner slot="4444444444" format="vertical" />
+                  <BlogPanel country={selectedCountry} duration={duration} selectedCity={selectedCity} />
                 </div>
               </div>
-            </div>
+            </CountryDetailModal>
           )}
 
           {/* Community mode */}
@@ -747,6 +740,39 @@ export default function Home() {
         )}
       </main>
     </div>
+  );
+}
+
+// Full-screen modal wrapper used by the country detail view. Renders
+// via a portal so it escapes the sidebar grid that was squeezing the
+// detail column.
+function CountryDetailModal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9998] bg-slate-950/85 backdrop-blur-sm overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="relative min-h-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="sticky top-4 ml-auto w-10 h-10 rounded-full bg-slate-800/90 hover:bg-slate-700 backdrop-blur border border-slate-700 text-slate-200 flex items-center justify-center shadow-lg z-10 block"
+          aria-label="닫기"
+        >✕</button>
+        <div className="-mt-10">{children}</div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
