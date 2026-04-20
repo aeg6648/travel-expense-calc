@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CELEBRITY_DESTINATIONS,
   TRAVEL_ADVISORIES,
@@ -39,23 +40,23 @@ export default function CelebrityPanel() {
       {/* Celebrity traveled-to card */}
       <button
         onClick={() => d && setOpen(d)}
-        className="group block w-full text-left rounded-2xl overflow-hidden border border-slate-700/60 bg-slate-800 shadow-lg hover:border-indigo-500/60 transition-all"
+        className="group block w-full text-left rounded-2xl overflow-hidden isolate border border-slate-700/60 bg-slate-800 shadow-lg hover:border-indigo-500/60 transition-colors"
       >
-        <div className="relative h-48">
+        <div className="relative h-48 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             key={d.id}
             src={d.photo}
             alt={`${d.person} — ${d.city}`}
-            className="absolute inset-0 w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+            className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent pointer-events-none" />
           {d.tag && (
             <span className="absolute top-3 left-3 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 backdrop-blur border border-white/20 text-white">
               {d.tag}
             </span>
           )}
-          <span className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full bg-black/50 backdrop-blur text-white/90 group-hover:bg-indigo-600/80 transition-colors">
+          <span className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full bg-black/50 backdrop-blur text-white/90">
             자세히 →
           </span>
           <div className="absolute bottom-3 left-3 right-3">
@@ -70,7 +71,7 @@ export default function CelebrityPanel() {
             {deck.map((_, i) => (
               <span
                 key={i}
-                className={`h-1 rounded-full transition-all ${
+                className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
                   i === idx ? 'w-5 bg-indigo-400' : 'w-1.5 bg-slate-600'
                 }`}
               />
@@ -107,16 +108,19 @@ export default function CelebrityPanel() {
 }
 
 function CelebrityModal({ destination, onClose }: { destination: CelebrityDestination; onClose: () => void }) {
-  // Lock scroll while open
+  const [mounted, setMounted] = useState(false);
+  // Lock scroll while open + only mount the portal on the client.
   useEffect(() => {
+    setMounted(true);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
+  if (!mounted || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -206,6 +210,7 @@ function CelebrityModal({ destination, onClose }: { destination: CelebrityDestin
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

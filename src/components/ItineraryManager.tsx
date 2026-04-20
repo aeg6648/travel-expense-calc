@@ -91,6 +91,21 @@ function priceLevelToLocal(priceLevel: number | undefined, currency: string): nu
   return table[Math.max(0, Math.min(4, priceLevel))] ?? 0;
 }
 
+// When Google doesn't return a price_level, infer a sensible default
+// from the place's type so the cost field always gets a realistic
+// pre-fill (and the trip's budget-used total reflects it).
+function inferPriceLevel(p: PlaceSuggestion): number {
+  if (p.priceLevel !== undefined) return p.priceLevel;
+  const types = p.types ?? [];
+  if (types.includes('lodging')) return 3;                                       // hotels
+  if (types.some(t => ['transit_station', 'subway_station', 'bus_station', 'train_station', 'light_rail_station'].includes(t))) return 1;
+  if (types.includes('park') || types.includes('natural_feature')) return 0;     // often free
+  if (types.some(t => ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'food'].includes(t))) return 2;
+  if (types.includes('museum') || types.includes('amusement_park') || types.includes('aquarium')) return 2;
+  if (types.includes('tourist_attraction') || types.includes('art_gallery')) return 2;
+  return 2; // generic mid tier
+}
+
 const TYPE_COLORS: Record<Activity['type'], string> = {
   flight:        'bg-indigo-900/30 border-indigo-700/50 text-indigo-300',
   accommodation: 'bg-violet-900/30 border-violet-700/50 text-violet-300',
@@ -1120,9 +1135,11 @@ function ActivityForm({
     setLocationPlaceId(p.placeId);
     setRating(p.rating);
     if (!title) setTitle(p.name);
-    // Pre-fill cost from Google price_level if nothing entered yet
-    if (!cost && p.priceLevel !== undefined) {
-      const local = priceLevelToLocal(p.priceLevel, currency);
+    // Always pre-fill cost — use Google price_level when present, else
+    // infer from place type. User can still override by editing the field.
+    if (!cost) {
+      const level = inferPriceLevel(p);
+      const local = priceLevelToLocal(level, currency);
       if (local > 0) {
         setCost(currency === 'KRW' ? String(Math.round(local / 10000)) : String(local));
       }
@@ -1274,28 +1291,40 @@ function ActivityForm({
 
           {showSuggestions && results.length > 0 && (
             <div className="absolute z-50 top-full mt-1 w-full bg-slate-800 border border-slate-600 rounded-xl shadow-xl overflow-hidden">
-              {results.map(p => (
-                <button
-                  key={p.placeId}
-                  onMouseDown={() => selectPlace(p)}
-                  className="w-full px-3 py-2.5 text-left hover:bg-slate-700 transition-colors border-b border-slate-700/60 last:border-0"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-200 truncate">{p.name}</p>
-                      <p className="text-[10px] text-slate-500 truncate mt-0.5">{p.address}</p>
+              <div className="px-3 py-1.5 border-b border-slate-700/60 text-[10px] text-slate-500 bg-slate-900/40">
+                🌐 Google 장소 검색 · 가격은 Google 가격 등급으로 자동 추정돼요
+              </div>
+              {results.map(p => {
+                const level = inferPriceLevel(p);
+                const preview = priceLevelToLocal(level, currency);
+                return (
+                  <button
+                    key={p.placeId}
+                    onMouseDown={() => selectPlace(p)}
+                    className="w-full px-3 py-2.5 text-left hover:bg-slate-700 transition-colors border-b border-slate-700/60 last:border-0"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-slate-200 truncate">{p.name}</p>
+                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{p.address}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        {p.rating && (
+                          <p className="text-[10px] text-amber-400">★ {p.rating}</p>
+                        )}
+                        {p.userRatingsTotal && (
+                          <p className="text-[10px] text-slate-500">{t.reviewCount(p.userRatingsTotal)}</p>
+                        )}
+                        {preview > 0 && (
+                          <p className="text-[10px] text-indigo-300 mt-0.5">
+                            ≈ {currency === 'KRW' ? `${Math.round(preview / 1000) * 1000}원` : `${CURRENCY_FLAG[currency] ?? '💱'} ${preview.toLocaleString()}`}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      {p.rating && (
-                        <p className="text-[10px] text-amber-400">★ {p.rating}</p>
-                      )}
-                      {p.userRatingsTotal && (
-                        <p className="text-[10px] text-slate-500">{t.reviewCount(p.userRatingsTotal)}</p>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1426,9 +1455,11 @@ function MapView({
 }) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
+  // Match the day-view sort exactly so dragging a card updates the map
+  // in real time (manual order wins → time → insertion order).
   const dayActivities = activities
     .filter(a => a.day === selectedDay && a.location)
-    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    .sort(sortActivities);
 
   const embedUrl = (() => {
     if (!apiKey || dayActivities.length === 0) return '';
