@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { TravelStyle } from '@/types/travel';
 import { getCountryByCode } from '@/lib/travel-data';
 import { getHolidayInfo } from '@/lib/holidays';
@@ -86,15 +87,16 @@ export default function Home() {
       {/* ── Minimal header ── */}
       <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <button
-            onClick={() => { handleModeChange('budget'); }}
+          <Link
+            href="/"
+            onClick={() => handleModeChange('budget')}
             className="flex items-center gap-2.5 group"
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-400 flex items-center justify-center shadow-lg shadow-indigo-900/40 group-hover:shadow-indigo-500/30 transition-all">
               <span className="text-base">✈️</span>
             </div>
             <span className="text-sm font-bold text-slate-100 hidden sm:block">{t.siteTitle}</span>
-          </button>
+          </Link>
 
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-900/30 border border-emerald-700/40 text-xs">
@@ -151,6 +153,32 @@ export default function Home() {
           {/* Background glow */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-600/8 rounded-full blur-3xl" />
+            {/* 큰 비행기 */}
+            <div className="plane-fly absolute" style={{ top: '30%' }}>
+              <svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 5 C13.5 5 13.5 7 13.5 9 L13.5 20 C13.5 22 13.5 24 15 25 L16 26 L17 25 C18.5 24 18.5 22 18.5 20 L18.5 9 C18.5 7 18.5 5 17 5 Z" fill="url(#pg1)" opacity="0.9"/>
+                <path d="M13.5 12.5 L4 17.5 L4 19.5 L13.5 15.5 Z" fill="url(#pg1)" opacity="0.8"/>
+                <path d="M18.5 12.5 L28 17.5 L28 19.5 L18.5 15.5 Z" fill="url(#pg1)" opacity="0.8"/>
+                <path d="M13.5 20.5 L9.5 23.5 L9.5 24.5 L13.5 22 Z" fill="url(#pg1)" opacity="0.7"/>
+                <path d="M18.5 20.5 L22.5 23.5 L22.5 24.5 L18.5 22 Z" fill="url(#pg1)" opacity="0.7"/>
+                <defs>
+                  <linearGradient id="pg1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#a5b4fc"/>
+                    <stop offset="100%" stopColor="#6366f1"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            {/* 작은 비행기 */}
+            <div className="plane-fly-small absolute" style={{ top: '65%' }}>
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 5 C13.5 5 13.5 7 13.5 9 L13.5 20 C13.5 22 13.5 24 15 25 L16 26 L17 25 C18.5 24 18.5 22 18.5 20 L18.5 9 C18.5 7 18.5 5 17 5 Z" fill="#818cf8"/>
+                <path d="M13.5 12.5 L4 17.5 L4 19.5 L13.5 15.5 Z" fill="#818cf8"/>
+                <path d="M18.5 12.5 L28 17.5 L28 19.5 L18.5 15.5 Z" fill="#818cf8"/>
+                <path d="M13.5 20.5 L9.5 23.5 L9.5 24.5 L13.5 22 Z" fill="#818cf8"/>
+                <path d="M18.5 20.5 L22.5 23.5 L22.5 24.5 L18.5 22 Z" fill="#818cf8"/>
+              </svg>
+            </div>
           </div>
 
           <div className="relative max-w-3xl mx-auto text-center">

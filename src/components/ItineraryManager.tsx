@@ -380,7 +380,7 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
     onSave({
       id: crypto.randomUUID(),
       name: name.trim(), countryCode, startDate, endDate,
-      budget: Number(budget) || 0, currency,
+      budget: Number(budget.replace(/,/g, '')) || 0, currency,
       notes: notes.trim(), activities: [],
       createdAt: new Date().toISOString(),
     });
@@ -413,11 +413,38 @@ function CreateTripForm({ onSave, onCancel }: { onSave: (trip: Trip) => void; on
       </div>
 
       <Field label={t.budget}>
-        <div className="flex gap-2">
-          <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputCls} w-auto`}>
-            {['KRW','USD','EUR','JPY','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
+        <div className="flex gap-2 mb-2">
+          <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputCls} w-24 shrink-0`}>
+            {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="0" className={`${inputCls} flex-1`} />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={budget === '' ? '' : Number(budget).toLocaleString()}
+            onChange={e => {
+              const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+              setBudget(raw);
+            }}
+            placeholder="0"
+            className={`${inputCls} flex-1 text-right font-mono`}
+          />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {(currency === 'KRW'
+            ? [500000, 1000000, 1500000, 2000000, 3000000, 5000000]
+            : currency === 'JPY'
+            ? [50000, 100000, 150000, 200000, 300000, 500000]
+            : [500, 1000, 1500, 2000, 3000, 5000]
+          ).map(amt => (
+            <button
+              key={amt}
+              type="button"
+              onClick={() => setBudget(String(amt))}
+              className="px-2.5 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 transition-colors"
+            >
+              {currency === 'KRW' ? `${amt / 10000}만원` : currency === 'JPY' ? `${amt / 10000}万` : `${amt}`}
+            </button>
+          ))}
         </div>
       </Field>
 
@@ -572,15 +599,49 @@ function ActivityForm({
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t.activityTitlePlaceholder} className={inputSmCls} />
       </div>
 
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <label className="text-[11px] text-slate-400 block mb-1">{t.activityCost}</label>
-          <div className="flex gap-1">
-            <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputSmCls} w-auto`}>
-              {['KRW','USD','EUR','JPY','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0" className={`${inputSmCls} flex-1`} />
-          </div>
+      <div>
+        <label className="text-[11px] text-slate-400 block mb-1">{t.activityCost}</label>
+        <div className="flex gap-1.5 mb-1.5">
+          <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${inputSmCls} w-20 shrink-0`}>
+            {['KRW','JPY','USD','EUR','GBP','AUD','CNY','SGD','THB'].map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={cost === '' ? '' : Number(cost).toLocaleString()}
+            onChange={e => {
+              const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+              setCost(raw);
+            }}
+            placeholder="0"
+            className={`${inputSmCls} flex-1 text-right font-mono`}
+          />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {(currency === 'KRW'
+            ? [10000, 30000, 50000, 100000, 200000, 500000]
+            : currency === 'JPY'
+            ? [1000, 3000, 5000, 10000, 30000, 50000]
+            : [10, 30, 50, 100, 200, 500]
+          ).map(amt => (
+            <button
+              key={amt}
+              type="button"
+              onClick={() => setCost(String((Number(cost) || 0) + amt))}
+              className="px-2 py-0.5 text-[10px] rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 transition-colors"
+            >
+              +{amt >= 10000 ? `${amt / 10000}만` : amt.toLocaleString()}
+            </button>
+          ))}
+          {cost !== '' && cost !== '0' && (
+            <button
+              type="button"
+              onClick={() => setCost('')}
+              className="px-2 py-0.5 text-[10px] rounded-md bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 transition-colors"
+            >
+              초기화
+            </button>
+          )}
         </div>
       </div>
 
