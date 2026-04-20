@@ -248,7 +248,6 @@ export default function Home() {
               )}
               <span className="text-2xl">📅</span>
               <span className="text-base">{t.modeItinerary}</span>
-              <span className="hidden sm:inline text-xs font-normal text-amber-200/80">· 일정·예산·동선 한번에</span>
             </button>
 
             {/* ── Secondary tabs ── */}
