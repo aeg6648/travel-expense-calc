@@ -5,7 +5,7 @@ import { COUNTRIES } from '@/lib/travel-data';
 import type { RecommendedPlace } from '@/lib/recommended-places';
 import { useLang } from '@/context/LangContext';
 
-interface Activity {
+export interface Activity {
   id: string;
   day: number;
   time: string;
@@ -25,7 +25,7 @@ interface Activity {
   lng?: number;
 }
 
-interface Trip {
+export interface Trip {
   id: string;
   name: string;
   countryCode: string;
@@ -133,7 +133,7 @@ function storageKey(userId: string) {
   return `trip-b-itineraries-${userId}`;
 }
 
-function loadTrips(userId: string): Trip[] {
+export function loadTrips(userId: string): Trip[] {
   if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem(storageKey(userId)) || '[]'); }
   catch { return []; }

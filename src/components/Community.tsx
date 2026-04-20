@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { COUNTRIES } from '@/lib/travel-data';
+import { loadTrips, type Trip, type Activity } from '@/components/ItineraryManager';
 
 export interface CommunityComment {
   id: string;
@@ -24,6 +25,7 @@ export interface CommunityPost {
   likes: string[]; // authorSub list
   comments: CommunityComment[];
   createdAt: string;
+  sharedTrip?: Trip; // snapshot of the author's saved itinerary at post time
 }
 
 const STORAGE_KEY = 'tripb_community_posts_v1';
@@ -53,6 +55,78 @@ export function useCommunityPosts() {
     posts,
     setPosts: (next: CommunityPost[]) => { setPosts(next); savePosts(next); },
   };
+}
+
+function SharedTripCard({ trip, compact }: { trip: Trip; compact?: boolean }) {
+  const country = COUNTRIES.find(c => c.code === trip.countryCode);
+  const totalCost = trip.activities.reduce((s, a) => s + (a.cost || 0), 0);
+  const days = trip.startDate && trip.endDate
+    ? Math.max(1, Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000))
+    : 1;
+  // Group activities per day for preview
+  const byDay = new Map<number, Activity[]>();
+  for (const a of trip.activities) {
+    if (!byDay.has(a.day)) byDay.set(a.day, []);
+    byDay.get(a.day)!.push(a);
+  }
+  for (const list of byDay.values()) {
+    list.sort((x, y) => {
+      if (x.order !== undefined && y.order !== undefined) return x.order - y.order;
+      return (x.time || '').localeCompare(y.time || '');
+    });
+  }
+  const orderedDays = Array.from(byDay.keys()).sort((a, b) => a - b);
+
+  return (
+    <div className={`rounded-2xl border border-indigo-700/40 bg-indigo-900/10 overflow-hidden ${compact ? 'mt-2' : ''}`}>
+      <div className="flex items-center gap-2 px-4 py-3 bg-indigo-900/20 border-b border-indigo-700/30">
+        <span className="text-xl">{country?.flag ?? '🌍'}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-100 truncate">📅 {trip.name}</p>
+          <p className="text-[11px] text-slate-400">
+            {country?.nameKR ?? trip.countryCode}
+            {trip.startDate && trip.endDate && ` · ${trip.startDate} ~ ${trip.endDate}`}
+            {` · ${days}박 ${days + 1}일`}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[10px] text-slate-500">활동 {trip.activities.length}개</p>
+          {totalCost > 0 && (
+            <p className="text-xs font-semibold text-indigo-300">
+              {trip.currency === 'KRW' ? `${(totalCost / 10000).toLocaleString()}만원` : `${totalCost.toLocaleString()} ${trip.currency}`}
+            </p>
+          )}
+        </div>
+      </div>
+      {!compact && orderedDays.length > 0 && (
+        <div className="px-4 py-3 space-y-2.5 max-h-96 overflow-auto">
+          {orderedDays.map(d => (
+            <div key={d}>
+              <p className="text-[11px] font-semibold text-indigo-300 mb-1">Day {d}</p>
+              <div className="space-y-1 pl-2 border-l border-indigo-700/30">
+                {byDay.get(d)!.map(a => (
+                  <div key={a.id} className="text-[11px] text-slate-300 flex items-center gap-2">
+                    {a.time && <span className="text-slate-500 tabular-nums shrink-0">{a.time}</span>}
+                    <span className="truncate">{a.title}</span>
+                    {a.cost > 0 && (
+                      <span className="text-slate-500 ml-auto shrink-0">
+                        {a.currency === 'KRW' ? `${(a.cost / 10000).toLocaleString()}만` : `${a.cost.toLocaleString()}`}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {compact && (
+        <div className="px-4 py-2 text-[11px] text-slate-400">
+          첨부됐어요 — 글을 열면 하루별 활동을 모두 볼 수 있어요.
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatRelative(iso: string): string {
@@ -219,6 +293,9 @@ export default function Community({ initialAuthorSub }: Props) {
                 <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
                   <span className={liked ? 'text-pink-400' : ''}>{liked ? '♥' : '♡'} {p.likes.length}</span>
                   <span>💬 {p.comments.length}</span>
+                  {p.sharedTrip && (
+                    <span className="text-indigo-400">📅 일정 {p.sharedTrip.activities.length}개</span>
+                  )}
                 </div>
               </button>
             );
@@ -278,6 +355,8 @@ function PostDetail({
 
         <h2 className="text-xl font-bold text-slate-100">{post.title}</h2>
         <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{post.body}</p>
+
+        {post.sharedTrip && <SharedTripCard trip={post.sharedTrip} />}
 
         <div className="flex items-center gap-2 pt-2 border-t border-slate-700/60">
           <button
@@ -355,6 +434,17 @@ function PostForm({
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [countryCode, setCountryCode] = useState('');
+  const [myTrips, setMyTrips] = useState<Trip[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState<string>('');
+
+  useEffect(() => { setMyTrips(loadTrips(user.sub)); }, [user.sub]);
+
+  const selectedTrip = myTrips.find(t => t.id === selectedTripId);
+
+  // Auto-fill country from chosen trip unless user already set one
+  useEffect(() => {
+    if (selectedTrip && !countryCode) setCountryCode(selectedTrip.countryCode);
+  }, [selectedTrip, countryCode]);
 
   const handleSave = () => {
     if (!title.trim() || !body.trim()) return;
@@ -369,6 +459,7 @@ function PostForm({
       likes: [],
       comments: [],
       createdAt: new Date().toISOString(),
+      sharedTrip: selectedTrip ? { ...selectedTrip } : undefined,
     });
   };
 
@@ -391,6 +482,34 @@ function PostForm({
             <option key={c.code} value={c.code}>{c.flag} {c.nameKR}</option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-slate-400 block mb-1.5">
+          📅 내 일정 첨부 <span className="text-slate-600 font-normal">(선택 — 글과 함께 공유돼요)</span>
+        </label>
+        {myTrips.length === 0 ? (
+          <p className="text-[11px] text-slate-600 px-3 py-2 rounded-xl bg-slate-700/30 border border-dashed border-slate-700">
+            저장된 여행이 없어요. 먼저 내 여행 일정에서 일정을 만들어보세요.
+          </p>
+        ) : (
+          <select
+            value={selectedTripId}
+            onChange={e => setSelectedTripId(e.target.value)}
+            className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">첨부하지 않기</option>
+            {myTrips.map(t => {
+              const country = COUNTRIES.find(c => c.code === t.countryCode);
+              return (
+                <option key={t.id} value={t.id}>
+                  {country?.flag ?? '🌍'} {t.name} — {t.activities.length}개 활동
+                </option>
+              );
+            })}
+          </select>
+        )}
+        {selectedTrip && <SharedTripCard trip={selectedTrip} compact />}
       </div>
 
       <div>
