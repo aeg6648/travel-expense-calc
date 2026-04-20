@@ -9,6 +9,7 @@ import { STYLE_LABELS } from '@/lib/utils';
 import { useLang } from '@/context/LangContext';
 import { useAuth } from '@/context/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
+import TripBLogo from '@/components/TripBLogo';
 
 import CountryGrid from '@/components/CountryGrid';
 import CostSummaryCard from '@/components/CostSummaryCard';
@@ -141,7 +142,7 @@ export default function Home() {
                 onAnimationEnd={() => setPlaneAnim(false)}
               >✈️</span>
             </div>
-            <span className="text-sm font-bold text-slate-100 hidden sm:block">{t.siteTitle}</span>
+            <TripBLogo size={32} className="hidden sm:block" />
           </Link>
 
           <div className="flex items-center gap-2">
