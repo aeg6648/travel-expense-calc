@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CELEBRITY_DESTINATIONS,
@@ -10,7 +10,10 @@ import {
 
 export default function CelebrityPanel() {
   const [idx, setIdx] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1); // +1 = slide from right, -1 = from left
   const [open, setOpen] = useState<CelebrityDestination | null>(null);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
   // Shuffle once per visit so the order feels fresh, then auto-advance.
   const deck = useMemo(() => {
@@ -23,9 +26,30 @@ export default function CelebrityPanel() {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setIdx(i => (i + 1) % deck.length), 9000);
+    if (paused) return;
+    const t = setInterval(() => {
+      setDirection(1);
+      setIdx(i => (i + 1) % deck.length);
+    }, 9000);
     return () => clearInterval(t);
-  }, [deck.length]);
+  }, [deck.length, paused]);
+
+  const go = (delta: 1 | -1) => {
+    setDirection(delta);
+    setIdx(i => (i + delta + deck.length) % deck.length);
+    setPaused(true);
+    // Resume auto-advance after a while
+    setTimeout(() => setPaused(false), 15000);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 40) return;
+    go(dx < 0 ? 1 : -1);
+  };
 
   const d = deck[idx] ?? deck[0];
 
@@ -37,48 +61,90 @@ export default function CelebrityPanel() {
 
   return (
     <aside className="space-y-4">
-      {/* Celebrity traveled-to card */}
-      <button
-        onClick={() => d && setOpen(d)}
-        className="group block w-full text-left rounded-2xl overflow-hidden isolate border border-slate-700/60 bg-slate-800 shadow-lg hover:border-indigo-500/60 transition-colors"
+      {/* Celebrity traveled-to card — swipeable & clickable */}
+      <div
+        className="relative group rounded-2xl overflow-hidden isolate border border-slate-700/60 bg-slate-800 shadow-lg hover:border-indigo-500/60 transition-colors"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
-        <div className="relative h-48 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            key={d.id}
-            src={d.photo}
-            alt={`${d.person} — ${d.city}`}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent pointer-events-none" />
-          {d.tag && (
-            <span className="absolute top-3 left-3 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 backdrop-blur border border-white/20 text-white">
-              {d.tag}
-            </span>
-          )}
-          <span className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full bg-black/50 backdrop-blur text-white/90">
-            자세히 →
-          </span>
-          <div className="absolute bottom-3 left-3 right-3">
-            <p className="text-[10px] text-white/70 uppercase tracking-widest">최근 다녀옴</p>
-            <p className="text-lg font-bold text-white leading-tight mt-0.5">{d.person}</p>
-            <p className="text-xs text-white/80 mt-0.5">📍 {d.city}</p>
-          </div>
-        </div>
-        <div className="px-4 py-3">
-          <p className="text-xs text-slate-300 leading-relaxed">{d.caption}</p>
-          <div className="flex items-center gap-1 mt-3">
-            {deck.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
-                  i === idx ? 'w-5 bg-indigo-400' : 'w-1.5 bg-slate-600'
-                }`}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => d && setOpen(d)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && d) setOpen(d); }}
+          className="cursor-pointer"
+        >
+          <div className="relative h-48 overflow-hidden">
+            {/* Keyed wrapper so each slide re-mounts with the slide-in animation */}
+            <div
+              key={`${d.id}-${direction}`}
+              className="absolute inset-0"
+              style={{
+                animation: `celeb-slide-${direction === 1 ? 'right' : 'left'} 380ms ease-out`,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={d.photo}
+                alt={`${d.person} — ${d.city}`}
+                className="absolute inset-0 w-full h-full object-cover"
               />
-            ))}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
+              {d.tag && (
+                <span className="absolute top-3 left-3 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 backdrop-blur border border-white/20 text-white">
+                  {d.tag}
+                </span>
+              )}
+              <span className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full bg-black/50 backdrop-blur text-white/90">
+                자세히 →
+              </span>
+              <div className="absolute bottom-3 left-10 right-10">
+                <p className="text-[10px] text-white/70 uppercase tracking-widest">최근 다녀옴</p>
+                <p className="text-lg font-bold text-white leading-tight mt-0.5">{d.person}</p>
+                <p className="text-xs text-white/80 mt-0.5">📍 {d.city}</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-xs text-slate-300 leading-relaxed">{d.caption}</p>
+            <div className="flex items-center gap-1 mt-3">
+              {deck.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1 rounded-full transition-[width,background-color] duration-200 ${
+                    i === idx ? 'w-5 bg-indigo-400' : 'w-1.5 bg-slate-600'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </button>
+
+        {/* Prev / Next arrows — float over the photo, don't trigger modal */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); go(-1); }}
+          aria-label="이전 여행지"
+          className="absolute left-2 top-[calc(6rem-14px)] w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur border border-white/15 text-white flex items-center justify-center shadow-md transition-colors"
+        >‹</button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); go(1); }}
+          aria-label="다음 여행지"
+          className="absolute right-2 top-[calc(6rem-14px)] w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur border border-white/15 text-white flex items-center justify-center shadow-md transition-colors"
+        >›</button>
+
+        <style jsx>{`
+          @keyframes celeb-slide-right {
+            from { transform: translateX(18%); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+          }
+          @keyframes celeb-slide-left {
+            from { transform: translateX(-18%); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+          }
+        `}</style>
+      </div>
 
       {/* Advisory / recommendation banner */}
       <div
