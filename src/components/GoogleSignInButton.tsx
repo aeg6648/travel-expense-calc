@@ -12,8 +12,8 @@ interface Props {
 
 // Google Identity Services refuses to sign in inside these in-app webviews
 // (KakaoTalk, Instagram, Facebook, Naver, Line, Band, etc.). There is no
-// way around this from our side — we can only give the user a one-tap
-// escape into the real system browser.
+// client-side workaround — we can only help the user escape into the real
+// system browser.
 function isBlockedWebview(ua: string): boolean {
   return /(kakaotalk|kakao|inapp|naver\(inapp|whale\/inapp|instagram|fb_iab|fbav|fban|line\/|band\/|everytime|twitter|daum|zum|;\s*wv\))/i.test(ua);
 }
@@ -25,9 +25,6 @@ function isAndroid(ua: string): boolean {
 }
 
 // Build a deep link that opens the current URL in the device's real browser.
-// KakaoTalk exposes an official scheme on both iOS and Android; other Android
-// webviews can use a Chrome Intent URL. iOS non-Kakao webviews (Instagram,
-// Line, Facebook) don't have a reliable scheme, so we fall back to copy.
 function externalBrowserHref(url: string, ua: string): string | null {
   if (isKakaoWebview(ua)) {
     return `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
@@ -64,7 +61,7 @@ export default function GoogleSignInButton({
 }: Props) {
   const [ua, setUa] = useState('');
   const [webview, setWebview] = useState(false);
-  const [gisFailed, setGisFailed] = useState(false);
+  const [rendered, setRendered] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,16 +71,12 @@ export default function GoogleSignInButton({
     setWebview(isBlockedWebview(u));
   }, []);
 
-  // Google's renderButton clamps width to [200, 400]. Keep our wrapper in
-  // that range so the rendered iframe fills the container exactly and every
-  // click lands on Google's real button underneath.
+  // Google's renderButton clamps width to [200, 400].
   const targetWidth = width ?? (size === 'large' ? 240 : 200);
 
-  // Render Google's official button (invisible) as soon as GIS is ready.
-  // We delegate the click to Google because window.google.accounts.id.prompt()
-  // silently no-ops on Safari/Samsung/Firefox under ITP, inside FedCM
-  // cooldowns, or when 3P cookies are blocked — renderButton bypasses all of
-  // those via its own popup/redirect flow.
+  // Render Google's official sign-in button directly — no overlay. The
+  // button's own iframe handles the click, which is the only reliable way
+  // to cover Safari/ITP, Samsung Internet, and FedCM cooldown cases.
   useEffect(() => {
     if (webview) return;
     let cancelled = false;
@@ -101,6 +94,7 @@ export default function GoogleSignInButton({
           width: targetWidth,
           logo_alignment: 'left',
         });
+        setRendered(true);
       } catch {}
       return true;
     };
@@ -108,30 +102,11 @@ export default function GoogleSignInButton({
     const i = setInterval(() => {
       if (tryRender()) clearInterval(i);
     }, 150);
-    // If GIS still hasn't loaded after 8 seconds (ad blocker, CSP, flaky
-    // network), give up on the button and let the click-fallback show a
-    // copy-url helper so the user isn't stuck on a dead button.
-    const timeout = setTimeout(() => {
-      if (!googleBtnRef.current?.childElementCount) setGisFailed(true);
-    }, 8000);
     return () => {
       cancelled = true;
       clearInterval(i);
-      clearTimeout(timeout);
     };
   }, [webview, size, text, theme, targetWidth]);
-
-  // Last-resort click handler: fires only when Google's iframe hasn't
-  // intercepted the click (cross-origin iframes eat events, so a rendered
-  // iframe stops this from running). Covers the tiny window before GIS is
-  // ready and the adblocker-blocked case.
-  const handleFallbackClick = () => {
-    try {
-      window.google?.accounts?.id?.prompt();
-    } catch {
-      /* ignore */
-    }
-  };
 
   if (webview) {
     const href = typeof window !== 'undefined' ? window.location.href : 'https://www.tripbudget.my';
@@ -172,70 +147,34 @@ export default function GoogleSignInButton({
     );
   }
 
-  const label = text === 'continue_with' ? 'Google로 계속하기' : 'Google 로그인';
-  const paddings = size === 'large' ? 'text-sm' : 'text-xs';
-  const iconSize = size === 'large' ? 'w-5 h-5' : 'w-4 h-4';
-
-  const themeClasses =
+  // Skeleton shown until Google's iframe paints — keeps layout from
+  // collapsing and signals to the user that login is loading.
+  const skeletonHeight = size === 'large' ? 44 : 38;
+  const skeletonClass =
     theme === 'outline'
-      ? 'bg-white text-slate-700 border-slate-300'
-      : theme === 'filled_blue'
-        ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
-        : 'bg-slate-800 text-slate-100 border-slate-700';
-
-  // GIS clearly blocked (ad-blocker or network). Render a static button that
-  // opens a copy-url helper so the user at least knows what happened.
-  if (gisFailed) {
-    const href = typeof window !== 'undefined' ? window.location.href : '';
-    const retry = () => {
-      try {
-        navigator.clipboard?.writeText(href);
-      } catch {
-        /* ignore */
-      }
-    };
-    return (
-      <button
-        type="button"
-        onClick={retry}
-        className={`inline-flex items-center justify-center gap-2 rounded-xl border font-semibold shadow-sm ${paddings} ${themeClasses}`}
-        style={{ minWidth: targetWidth }}
-        title="광고 차단기를 끄거나 다른 브라우저에서 시도해 주세요"
-      >
-        <span className={`inline-flex ${iconSize} rounded-full bg-white p-[3px] shrink-0`}>
-          <GoogleG className="w-full h-full" />
-        </span>
-        <span>로그인 불러오지 못함</span>
-      </button>
-    );
-  }
+      ? 'bg-white/90 text-slate-700 border-slate-300'
+      : 'bg-slate-800 text-slate-100 border-slate-700';
 
   return (
     <div
-      className="relative inline-block align-middle rounded-xl focus-within:ring-2 focus-within:ring-indigo-400 focus-within:ring-offset-2 focus-within:ring-offset-slate-900"
-      style={{ width: targetWidth }}
-      onClick={handleFallbackClick}
+      className="inline-block align-middle"
+      style={{ minWidth: targetWidth, minHeight: skeletonHeight }}
     >
-      {/* Decorative styled button — visible; clicks pass through via
-          pointer-events-none so Google's invisible button underneath
-          receives the tap. aria-hidden because the real button below
-          already announces itself to screen readers. */}
-      <div
-        aria-hidden="true"
-        className={`absolute inset-0 flex items-center justify-center gap-2 rounded-xl border font-semibold shadow-sm pointer-events-none ${paddings} ${themeClasses}`}
-      >
-        <span className={`inline-flex ${iconSize} rounded-full bg-white p-[3px] shrink-0`}>
-          <GoogleG className="w-full h-full" />
-        </span>
-        <span>{label}</span>
-      </div>
-      {/* Google's real sign-in button — kept invisible but the click target.
-          The wrapper width matches `targetWidth` so Google's iframe fills
-          it exactly, ensuring every click lands on the real button. */}
+      {!rendered && (
+        <div
+          aria-hidden="true"
+          className={`flex items-center justify-center gap-2 rounded-md border font-semibold shadow-sm text-xs ${skeletonClass}`}
+          style={{ width: targetWidth, height: skeletonHeight }}
+        >
+          <span className="inline-flex w-4 h-4 rounded-full bg-white p-[3px] shrink-0">
+            <GoogleG className="w-full h-full" />
+          </span>
+          <span className="opacity-80">Google 로그인</span>
+        </div>
+      )}
       <div
         ref={googleBtnRef}
-        className="relative opacity-0"
-        style={{ colorScheme: 'light' }}
+        style={{ colorScheme: 'light', display: rendered ? 'block' : 'none' }}
       />
     </div>
   );
