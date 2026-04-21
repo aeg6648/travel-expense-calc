@@ -217,6 +217,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             the login button is ready within the first paint. */}
         <link rel="preconnect" href="https://accounts.google.com" />
         <link rel="dns-prefetch" href="https://accounts.google.com" />
+        {/* Unsplash — the hero photo is picked client-side from this host so
+            we can't preload a specific URL, but warming the connection cuts
+            the first-paint hero delay by a round-trip. */}
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <Script
           src="https://accounts.google.com/gsi/client"
           strategy="beforeInteractive"

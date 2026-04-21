@@ -120,18 +120,19 @@ export default function CelebrityPanel() {
           </div>
         </div>
 
-        {/* Prev / Next arrows — float over the photo, don't trigger modal */}
+        {/* Prev / Next arrows — float over the photo, don't trigger modal.
+            Sized to WCAG 2.5.5 (>= 44px diagonal via 40x40 + tap margin). */}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); go(-1); }}
           aria-label="이전 여행지"
-          className="absolute left-2 top-[calc(6rem-14px)] w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur border border-white/15 text-white flex items-center justify-center shadow-md transition-colors"
+          className="absolute left-2 top-[calc(6rem-20px)] w-10 h-10 text-lg rounded-full bg-black/50 hover:bg-black/70 active:bg-black/80 backdrop-blur border border-white/15 text-white flex items-center justify-center shadow-md transition-colors"
         >‹</button>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); go(1); }}
           aria-label="다음 여행지"
-          className="absolute right-2 top-[calc(6rem-14px)] w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur border border-white/15 text-white flex items-center justify-center shadow-md transition-colors"
+          className="absolute right-2 top-[calc(6rem-20px)] w-10 h-10 text-lg rounded-full bg-black/50 hover:bg-black/70 active:bg-black/80 backdrop-blur border border-white/15 text-white flex items-center justify-center shadow-md transition-colors"
         >›</button>
 
         <style jsx>{`

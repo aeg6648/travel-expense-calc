@@ -148,6 +148,8 @@ function CountryCard({
           <img
             src={photo.url}
             alt={country.nameKR}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
           />

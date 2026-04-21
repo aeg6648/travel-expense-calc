@@ -64,6 +64,7 @@ export default function GoogleSignInButton({
 }: Props) {
   const [ua, setUa] = useState('');
   const [webview, setWebview] = useState(false);
+  const [gisFailed, setGisFailed] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,11 +108,30 @@ export default function GoogleSignInButton({
     const i = setInterval(() => {
       if (tryRender()) clearInterval(i);
     }, 150);
+    // If GIS still hasn't loaded after 8 seconds (ad blocker, CSP, flaky
+    // network), give up on the button and let the click-fallback show a
+    // copy-url helper so the user isn't stuck on a dead button.
+    const timeout = setTimeout(() => {
+      if (!googleBtnRef.current?.childElementCount) setGisFailed(true);
+    }, 8000);
     return () => {
       cancelled = true;
       clearInterval(i);
+      clearTimeout(timeout);
     };
   }, [webview, size, text, theme, targetWidth]);
+
+  // Last-resort click handler: fires only when Google's iframe hasn't
+  // intercepted the click (cross-origin iframes eat events, so a rendered
+  // iframe stops this from running). Covers the tiny window before GIS is
+  // ready and the adblocker-blocked case.
+  const handleFallbackClick = () => {
+    try {
+      window.google?.accounts?.id?.prompt();
+    } catch {
+      /* ignore */
+    }
+  };
 
   if (webview) {
     const href = typeof window !== 'undefined' ? window.location.href : 'https://www.tripbudget.my';
@@ -163,12 +183,45 @@ export default function GoogleSignInButton({
         ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
         : 'bg-slate-800 text-slate-100 border-slate-700';
 
+  // GIS clearly blocked (ad-blocker or network). Render a static button that
+  // opens a copy-url helper so the user at least knows what happened.
+  if (gisFailed) {
+    const href = typeof window !== 'undefined' ? window.location.href : '';
+    const retry = () => {
+      try {
+        navigator.clipboard?.writeText(href);
+      } catch {
+        /* ignore */
+      }
+    };
+    return (
+      <button
+        type="button"
+        onClick={retry}
+        className={`inline-flex items-center justify-center gap-2 rounded-xl border font-semibold shadow-sm ${paddings} ${themeClasses}`}
+        style={{ minWidth: targetWidth }}
+        title="광고 차단기를 끄거나 다른 브라우저에서 시도해 주세요"
+      >
+        <span className={`inline-flex ${iconSize} rounded-full bg-white p-[3px] shrink-0`}>
+          <GoogleG className="w-full h-full" />
+        </span>
+        <span>로그인 불러오지 못함</span>
+      </button>
+    );
+  }
+
   return (
-    <div className="relative inline-block align-middle" style={{ width: targetWidth }}>
+    <div
+      className="relative inline-block align-middle rounded-xl focus-within:ring-2 focus-within:ring-indigo-400 focus-within:ring-offset-2 focus-within:ring-offset-slate-900"
+      style={{ width: targetWidth }}
+      onClick={handleFallbackClick}
+    >
       {/* Decorative styled button — visible; clicks pass through via
           pointer-events-none so Google's invisible button underneath
-          receives the tap. */}
+          receives the tap. aria-hidden because the real button below
+          already announces itself to screen readers. */}
       <div
+        aria-hidden="true"
         className={`absolute inset-0 flex items-center justify-center gap-2 rounded-xl border font-semibold shadow-sm pointer-events-none ${paddings} ${themeClasses}`}
       >
         <span className={`inline-flex ${iconSize} rounded-full bg-white p-[3px] shrink-0`}>
@@ -183,7 +236,6 @@ export default function GoogleSignInButton({
         ref={googleBtnRef}
         className="relative opacity-0"
         style={{ colorScheme: 'light' }}
-        aria-label="Google로 로그인"
       />
     </div>
   );

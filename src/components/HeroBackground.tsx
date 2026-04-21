@@ -45,6 +45,9 @@ export default function HeroBackground() {
         <img
           src={src}
           alt=""
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
           className="hero-photo absolute inset-0 w-full h-full object-cover"
         />
       )}
