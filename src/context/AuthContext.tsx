@@ -34,6 +34,8 @@ declare global {
           renderButton: (element: HTMLElement, config: object) => void;
           disableAutoSelect: () => void;
           revoke: (hint: string, callback: () => void) => void;
+          prompt: (listener?: (notification: unknown) => void) => void;
+          cancel: () => void;
         };
       };
     };

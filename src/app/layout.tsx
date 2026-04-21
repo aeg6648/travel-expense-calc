@@ -213,10 +213,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="google-site-verification" content="your-verification-code" />
         <meta name="naver-site-verification" content="ab9c7b64d1277578ef377f6c41bcf88c94b0f479" />
-        {/* Google Identity Services */}
+        {/* Google Identity Services — preconnect + load with high priority so
+            the login button is ready within the first paint. */}
+        <link rel="preconnect" href="https://accounts.google.com" />
+        <link rel="dns-prefetch" href="https://accounts.google.com" />
         <Script
           src="https://accounts.google.com/gsi/client"
-          strategy="afterInteractive"
+          strategy="beforeInteractive"
         />
       </head>
       <body className="min-h-full bg-[#0f1117] text-white antialiased">

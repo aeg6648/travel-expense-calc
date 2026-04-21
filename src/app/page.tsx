@@ -193,7 +193,10 @@ export default function Home() {
             </div>
 
             {authLoading ? (
-              <div className="w-[90px] h-7 rounded-xl bg-slate-800/80 border border-slate-700/60 animate-pulse" />
+              // Show the login button straight away; if we discover a stored
+              // session within the same tick, it'll flip to the avatar. Keeps
+              // the header from having a blank slot.
+              <GoogleSignInButton size="medium" text="signin_with" theme="filled_black" />
             ) : user ? (
               <div className="relative" ref={menuRef}>
                 <button
