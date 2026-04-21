@@ -62,6 +62,19 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Let other components request a jump to the itinerary tab (e.g. after
+  // importing a community trip into "내 여행 일정").
+  useEffect(() => {
+    const goto = () => {
+      setCommunityAuthorFilter(undefined);
+      setCommunityInitialKind(undefined);
+      setMode('itinerary');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('tripb-goto-itinerary', goto);
+    return () => window.removeEventListener('tripb-goto-itinerary', goto);
+  }, []);
+
   // Reset profile image error state when user changes (re-login)
   useEffect(() => { setImgError(false); }, [user?.sub]);
   const datePickerRef = useRef<HTMLInputElement>(null);

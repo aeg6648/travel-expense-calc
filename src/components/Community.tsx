@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { COUNTRIES } from '@/lib/travel-data';
-import { loadTrips, sumInCurrency, type Trip, type Activity } from '@/components/ItineraryManager';
+import { importTripToMine, loadTrips, sumInCurrency, type Trip, type Activity } from '@/components/ItineraryManager';
 import { isAdminEmail } from '@/lib/admin';
 
 export interface CommunityComment {
@@ -156,7 +156,7 @@ export function useCommunityPosts(): Store {
   return { posts, source, createPost, deletePost, toggleLike, addComment };
 }
 
-function SharedTripCard({ trip, compact }: { trip: Trip; compact?: boolean }) {
+function SharedTripCard({ trip, compact, onImport, importing }: { trip: Trip; compact?: boolean; onImport?: () => void; importing?: boolean }) {
   const country = COUNTRIES.find(c => c.code === trip.countryCode);
   const totalCost = sumInCurrency(trip.activities, trip.currency);
   const days = trip.startDate && trip.endDate
@@ -272,6 +272,21 @@ function SharedTripCard({ trip, compact }: { trip: Trip; compact?: boolean }) {
       {compact && (
         <div className="px-4 py-2 text-[11px] text-slate-400">
           첨부됐어요 — 글을 열면 하루별 활동을 모두 볼 수 있어요.
+        </div>
+      )}
+      {!compact && onImport && (
+        <div className="border-t border-indigo-700/30 px-4 py-3 bg-indigo-900/15 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-indigo-200">이 일정, 내 여행으로 가져갈래요?</p>
+            <p className="text-[11px] text-indigo-300/80 mt-0.5">복사본이 내 일정 목록에 생겨서 자유롭게 수정할 수 있어요.</p>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onImport(); }}
+            disabled={importing}
+            className="shrink-0 text-xs px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold transition-colors"
+          >
+            {importing ? '가져오는 중…' : '⬇ 내 일정으로'}
+          </button>
         </div>
       )}
     </div>
@@ -562,6 +577,7 @@ function PostDetail({
   const [comment, setComment] = useState('');
   const [commentAnon, setCommentAnon] = useState(false);
   const [commentNick, setCommentNick] = useState('');
+  const [importing, setImporting] = useState(false);
   useEffect(() => {
     try { setCommentNick(localStorage.getItem('tripb_community_nickname_v1') ?? ''); } catch { /* ignore */ }
   }, []);
@@ -569,6 +585,26 @@ function PostDetail({
   const liked = currentUserSub ? post.likes.includes(currentUserSub) : false;
   const mine = currentUserSub === post.authorSub;
   const canDelete = mine || isAdmin;
+  const canImport = !!currentUserSub && !!post.sharedTrip;
+
+  const handleImport = () => {
+    if (!currentUserSub || !post.sharedTrip) return;
+    setImporting(true);
+    try {
+      importTripToMine(currentUserSub, post.sharedTrip, { renameSuffix: ' (가져옴)' });
+      setTimeout(() => {
+        setImporting(false);
+        if (confirm('✅ 내 여행 목록에 복사됐어요. 내 일정으로 이동할까요?')) {
+          window.location.hash = '';
+          // Navigate to itinerary — page.tsx listens for this custom event
+          window.dispatchEvent(new CustomEvent('tripb-goto-itinerary'));
+        }
+      }, 120);
+    } catch (e) {
+      setImporting(false);
+      alert(`❌ 가져오기 실패: ${(e as Error).message}`);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -613,7 +649,13 @@ function PostDetail({
         <h2 className="text-xl font-bold text-slate-100">{post.title}</h2>
         <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{post.body}</p>
 
-        {post.sharedTrip && <SharedTripCard trip={post.sharedTrip} />}
+        {post.sharedTrip && (
+          <SharedTripCard
+            trip={post.sharedTrip}
+            onImport={canImport ? handleImport : undefined}
+            importing={importing}
+          />
+        )}
 
         <div className="flex items-center gap-2 pt-2 border-t border-slate-700/60">
           <button

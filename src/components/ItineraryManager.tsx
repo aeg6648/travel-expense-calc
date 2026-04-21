@@ -162,6 +162,26 @@ function storageKey(userId: string) {
   return `trip-b-itineraries-${userId}`;
 }
 
+// Copy a trip snapshot into the signed-in user's localStorage itinerary
+// list. IDs are regenerated so the imported trip is independent of the
+// original and can be edited freely. Returns the new trip's id.
+export function importTripToMine(userId: string, incoming: Trip, options?: { renameSuffix?: string }): string {
+  const existing = loadTrips(userId);
+  const newId = crypto.randomUUID();
+  const copy: Trip = {
+    ...incoming,
+    id: newId,
+    name: options?.renameSuffix ? `${incoming.name}${options.renameSuffix}` : incoming.name,
+    createdAt: new Date().toISOString(),
+    activities: incoming.activities.map(a => ({ ...a, id: crypto.randomUUID() })),
+    packingList: incoming.packingList?.map(p => ({ ...p, id: Math.random().toString(36).slice(2, 10), checked: false })),
+  };
+  const next = [copy, ...existing];
+  localStorage.setItem(`trip-b-itineraries-${userId}`, JSON.stringify(next));
+  try { window.dispatchEvent(new StorageEvent('storage', { key: `trip-b-itineraries-${userId}` })); } catch {}
+  return newId;
+}
+
 export function loadTrips(userId: string): Trip[] {
   if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem(storageKey(userId)) || '[]'); }
