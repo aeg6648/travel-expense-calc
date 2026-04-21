@@ -413,14 +413,41 @@ export default function Community({ initialAuthorSub, initialKind }: Props) {
             </span>
           )}
         </div>
-        {user && (
-          <button
-            onClick={() => setView('create')}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-          >
-            {boardKind === 'qna' ? '+ 문의하기' : '+ 글쓰기'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && boardKind === 'post' && (
+            <button
+              onClick={async () => {
+                if (!user) return;
+                if (!confirm('유명인 기반 샘플 글 20개를 피드에 추가할까요? (이미 존재하면 덮어씁니다)')) return;
+                try {
+                  const res = await fetch('/api/community/seed', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: user.email, sub: user.sub, name: user.name, picture: user.picture, replace: true }),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    alert(`✅ ${data.inserted}/${data.total}개 추가됨`);
+                    window.location.reload();
+                  } else {
+                    alert(`❌ 실패: ${data.error ?? 'unknown'}`);
+                  }
+                } catch (e) { alert(`❌ ${(e as Error).message}`); }
+              }}
+              className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-pink-600 text-white text-xs font-semibold transition-opacity hover:opacity-90"
+              title="관리자 전용: 유명인 여행지 기반 샘플 글 20개 시드"
+            >
+              🌱 시드
+            </button>
+          )}
+          {user && (
+            <button
+              onClick={() => setView('create')}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
+            >
+              {boardKind === 'qna' ? '+ 문의하기' : '+ 글쓰기'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Board kind tab switch */}
