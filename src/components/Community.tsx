@@ -6,6 +6,20 @@ import { COUNTRIES } from '@/lib/travel-data';
 import { importTripToMine, loadTrips, sumInCurrency, type Trip, type Activity } from '@/components/ItineraryManager';
 import { isAdminEmail } from '@/lib/admin';
 
+// 12 distinct avatar fallback colors. Hash author key (sub or name) into
+// this palette so seeded sample posts (which all lack a profile picture)
+// don't collapse into a wall of identical indigo circles.
+const AVATAR_COLORS = [
+  'bg-rose-500', 'bg-orange-500', 'bg-amber-500', 'bg-lime-500',
+  'bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-sky-500',
+  'bg-blue-500', 'bg-violet-500', 'bg-fuchsia-500', 'bg-pink-500',
+];
+function avatarColor(key: string): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
 export interface CommunityComment {
   id: string;
   authorSub: string;
@@ -527,7 +541,7 @@ export default function Community({ initialAuthorSub, initialKind }: Props) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.authorPicture} alt="" className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">
+                    <div className={`w-6 h-6 rounded-full ${avatarColor(p.authorSub || p.authorName)} flex items-center justify-center text-[10px] font-bold text-white`}>
                       {p.authorName.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -623,7 +637,7 @@ function PostDetail({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={post.authorPicture} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+            <div className={`w-8 h-8 rounded-full ${avatarColor(post.authorSub || post.authorName)} flex items-center justify-center text-xs font-bold text-white`}>
               {post.authorName.charAt(0).toUpperCase()}
             </div>
           )}
@@ -725,7 +739,7 @@ function PostDetail({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={c.authorPicture} alt="" className="w-6 h-6 rounded-full shrink-0" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  <div className={`w-6 h-6 rounded-full ${avatarColor(c.authorSub || c.authorName)} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
                     {c.authorName.charAt(0).toUpperCase()}
                   </div>
                 )}

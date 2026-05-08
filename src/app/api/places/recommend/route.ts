@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { COUNTRIES } from '@/lib/travel-data';
 
 const CATEGORY_QUERIES: Record<string, string[]> = {
   food: ['best restaurants local food', 'popular street food cafes'],
@@ -6,6 +7,25 @@ const CATEGORY_QUERIES: Record<string, string[]> = {
   accommodation: ['best hotels guesthouses'],
   transport: ['main train station public transport metro'],
   all: ['best restaurants', 'top tourist attractions', 'best hotels'],
+};
+
+// ccTLD region hint for the Places Text Search API. Most of the time the
+// ISO-3166-1 alpha-2 country code matches the ccTLD; the exceptions
+// (UK→uk, etc.) are listed explicitly. The `region` parameter is a
+// soft bias — must be combined with country-name in the query and a
+// post-filter on formatted_address for hard scoping.
+const REGION_OVERRIDE: Record<string, string> = {
+  GB: 'uk',
+};
+
+// Tokens we look for in formatted_address to confirm a result actually
+// sits inside the requested country. Falls back to the country's
+// English name from COUNTRIES when not listed here.
+const ADDRESS_TOKENS: Record<string, string[]> = {
+  US: ['United States', 'USA'],
+  GB: ['United Kingdom', 'UK', 'England', 'Scotland', 'Wales', 'Northern Ireland'],
+  HK: ['Hong Kong'],
+  KR: ['South Korea', 'Korea'],
 };
 
 const GOOGLE_TYPE_TO_OURS: Record<string, 'food' | 'activity' | 'accommodation' | 'transport'> = {
@@ -116,16 +136,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(cached.data);
   }
 
-  const location = city || countryCode;
+  const country = COUNTRIES.find(c => c.code === countryCode);
+  const countryNameEN = country?.name ?? countryCode;
+  // Build a query phrase that always carries the country name so Google
+  // can't fall back to the popular-query default (which is heavily US-
+  // biased — the symptom users were hitting was Korean trips returning
+  // US restaurants when only the country code, not its name, was passed).
+  const locationPhrase = city ? `${city}, ${countryNameEN}` : countryNameEN;
   const curInfo = COUNTRY_CURRENCY[countryCode] ?? { code: 'USD', rate: 1, krwRate: 1380 };
   const queries = CATEGORY_QUERIES[category] ?? CATEGORY_QUERIES.all;
+  const region = REGION_OVERRIDE[countryCode] ?? countryCode.toLowerCase();
+  const tokens = ADDRESS_TOKENS[countryCode] ?? [countryNameEN];
 
   const results = await Promise.all(
     queries.map(async (q) => {
-      const query = `${q} in ${location}`;
+      const query = `${q} in ${locationPhrase}`;
       const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
       url.searchParams.set('query', query);
       url.searchParams.set('language', lang);
+      url.searchParams.set('region', region);
       url.searchParams.set('key', apiKey);
       try {
         const res = await fetch(url.toString(), { next: { revalidate: 86400 } });
@@ -140,6 +169,14 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const places = results.flat().filter((p: any) => {
     if (!p.place_id || seen.has(p.place_id)) return false;
+    // Hard country scope: drop any result whose formatted_address doesn't
+    // include the destination country's name. This catches cases where
+    // Google still returns geographically-misplaced popular hits despite
+    // the query phrase and region bias.
+    const addr: string = p.formatted_address ?? '';
+    if (addr && !tokens.some(t => addr.toLowerCase().includes(t.toLowerCase()))) {
+      return false;
+    }
     seen.add(p.place_id);
     return true;
   }).slice(0, 60).map((p: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any

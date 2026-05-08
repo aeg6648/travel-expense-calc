@@ -61,7 +61,6 @@ export default function GoogleSignInButton({
 }: Props) {
   const [ua, setUa] = useState('');
   const [webview, setWebview] = useState(false);
-  const [rendered, setRendered] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,7 +93,6 @@ export default function GoogleSignInButton({
           width: targetWidth,
           logo_alignment: 'left',
         });
-        setRendered(true);
       } catch {}
       return true;
     };
@@ -147,34 +145,36 @@ export default function GoogleSignInButton({
     );
   }
 
-  // Skeleton shown until Google's iframe paints — keeps layout from
-  // collapsing and signals to the user that login is loading.
+  // Skeleton is layered BEHIND Google's iframe so the button slot looks
+  // populated from the very first paint. GIS takes 200–800ms (script
+  // download + iframe document load) and toggling the skeleton off at
+  // renderButton-time leaves a perceptible blank window — keeping it
+  // permanently behind the iframe means the placeholder is visible
+  // until Google's button actually paints over it.
   const skeletonHeight = size === 'large' ? 44 : 38;
   const skeletonClass =
     theme === 'outline'
-      ? 'bg-white/90 text-slate-700 border-slate-300'
-      : 'bg-slate-800 text-slate-100 border-slate-700';
+      ? 'bg-white text-slate-700 border-slate-300'
+      : 'bg-[#131314] text-white border-[#131314]';
 
   return (
     <div
-      className="inline-block align-middle"
-      style={{ minWidth: targetWidth, minHeight: skeletonHeight }}
+      className="relative inline-block align-middle"
+      style={{ width: targetWidth, height: skeletonHeight }}
     >
-      {!rendered && (
-        <div
-          aria-hidden="true"
-          className={`flex items-center justify-center gap-2 rounded-md border font-semibold shadow-sm text-xs ${skeletonClass}`}
-          style={{ width: targetWidth, height: skeletonHeight }}
-        >
-          <span className="inline-flex w-4 h-4 rounded-full bg-white p-[3px] shrink-0">
-            <GoogleG className="w-full h-full" />
-          </span>
-          <span className="opacity-80">Google 로그인</span>
-        </div>
-      )}
+      <div
+        aria-hidden="true"
+        className={`absolute inset-0 flex items-center justify-center gap-2 rounded border font-semibold shadow-sm text-[13px] pointer-events-none ${skeletonClass}`}
+      >
+        <span className="inline-flex w-4 h-4 rounded-full bg-white p-[2px] shrink-0">
+          <GoogleG className="w-full h-full" />
+        </span>
+        <span>Google 로그인</span>
+      </div>
       <div
         ref={googleBtnRef}
-        style={{ colorScheme: 'light', display: rendered ? 'block' : 'none' }}
+        className="absolute inset-0"
+        style={{ colorScheme: 'light' }}
       />
     </div>
   );
